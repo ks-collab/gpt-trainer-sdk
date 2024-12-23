@@ -176,7 +176,9 @@ class AgentUpdateOptions:
 
 class GPTTrainer:
 
-    def __init__(self, api_key: str, base_url: str):
+    def __init__(
+        self, api_key: str, base_url: str = "https://app.gpt-trainer.com/api/v1"
+    ):
         self.base_url = base_url
         self.headers = {
             "Authorization": f"Bearer {api_key}",
