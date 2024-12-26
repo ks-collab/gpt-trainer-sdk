@@ -3,7 +3,13 @@
 We recommend installing using the GitHub HTTPS URL:
 
 ```bash
-pip install gpt_trainer_sdk @ git+https://github.com/ks-collab/gpt-trainer-sdk.git
+pip install gpt_trainer_sdk@git+https://github.com/ks-collab/gpt-trainer-sdk.git
+```
+
+Updates can be installed with:
+
+```bash
+pip install --upgrade gpt_trainer_sdk@git+https://github.com/ks-collab/gpt-trainer-sdk.git
 ```
 
 ## Usage
