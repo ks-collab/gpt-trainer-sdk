@@ -174,6 +174,12 @@ class AgentUpdateOptions:
     enabled: bool | None = None
 
 
+class GPTTrainerError(Exception):
+    """Raised when the GPT-trainer API returns an error response"""
+
+    pass
+
+
 class GPTTrainer:
 
     def __init__(
@@ -191,7 +197,9 @@ class GPTTrainer:
         if response.status_code == 200:
             return [Chatbot(**chatbot) for chatbot in response.json()]
         else:
-            raise Exception(f"Failed to get chatbots - {response.text}")
+            raise GPTTrainerError(
+                f"Failed to get chatbots - HTTP {response.status_code}: {response.text}"
+            )
 
     def create_chatbot(self, name: str, show_citations: bool = False) -> Chatbot:
         url = f"{self.base_url}/chatbot/create"
@@ -208,8 +216,8 @@ class GPTTrainer:
             logger.debug(f"Chatbot created - {response.text}")
             return Chatbot(**response.json())
         else:
-            raise Exception(
-                f"Failed to create chatbot - {response.status_code} - {response.text}"
+            raise GPTTrainerError(
+                f"Failed to create chatbot - HTTP {response.status_code}: {response.text}"
             )
 
     def delete_chatbot(self, chatbot_uuid: str):
@@ -219,8 +227,8 @@ class GPTTrainer:
         if response.status_code == 200:
             logger.debug(f"Chatbot {chatbot_uuid} deleted - {response.text}")
         else:
-            raise Exception(
-                f"Failed to delete chatbot {chatbot_uuid} - {response.status_code} - {response.text}"
+            raise GPTTrainerError(
+                f"Failed to delete chatbot {chatbot_uuid} - HTTP {response.status_code}: {response.text}"
             )
 
     def create_chat_session(self, chatbot_uuid: str) -> ChatSession:
@@ -231,8 +239,8 @@ class GPTTrainer:
             logger.debug(f"Chat session created - {response.text}")
             return ChatSession(**response.json())
         else:
-            raise Exception(
-                f"Failed to create chat session - {response.status_code} - {response.text}"
+            raise GPTTrainerError(
+                f"Failed to create chat session - HTTP {response.status_code}: {response.text}"
             )
 
     def send_message(self, session_uuid: str, query: str) -> SendMessageResponse:
@@ -243,8 +251,8 @@ class GPTTrainer:
             logger.debug(f"Chat message reply received - {response.text}")
             return SendMessageResponse(**response.json())
         else:
-            raise Exception(
-                f"Failed to send chat message - {response.status_code} - {response.text}"
+            raise GPTTrainerError(
+                f"Failed to send chat message - HTTP {response.status_code}: {response.text}"
             )
 
     @staticmethod
@@ -265,7 +273,6 @@ class GPTTrainer:
 
         if response.status_code == 200:
             logger.debug(f"Chat messages received - {response.text}")
-
             return [
                 ChatMessage(
                     cite_data=GPTTrainer.convert_cite_data(message["cite_data_json"]),
@@ -274,15 +281,14 @@ class GPTTrainer:
                 for message in response.json()
             ]
         else:
-            raise Exception(
-                f"Failed to get chat messages - {response.status_code} - {response.text}"
+            raise GPTTrainerError(
+                f"Failed to get chat messages - HTTP {response.status_code}: {response.text}"
             )
 
     def upload_data_source(
         self, chatbot_uuid: str, file: BinaryIO, file_name: str
     ) -> DataSource:
         url = f"{self.base_url}/chatbot/{chatbot_uuid}/data-source/upload"
-
         files = {"file": (file_name, file)}
 
         # we don't need reference_source_link
@@ -294,8 +300,8 @@ class GPTTrainer:
             logger.debug(f"File upload successful - {response.text}")
             return DataSource(**response.json())
         else:
-            raise Exception(
-                f"Failed to upload file - {response.status_code} - {response.text}"
+            raise GPTTrainerError(
+                f"Failed to upload file - HTTP {response.status_code}: {response.text}"
             )
 
     def get_data_sources(self, chatbot_uuid: str) -> list[DataSourceFull]:
@@ -307,8 +313,8 @@ class GPTTrainer:
             logger.debug(f"Data sources received - {response.text}")
             return [DataSourceFull(**source) for source in response.json()]
         else:
-            raise Exception(
-                f"Failed to get data sources - {response.status_code} - {response.text}"
+            raise GPTTrainerError(
+                f"Failed to get data sources - HTTP {response.status_code}: {response.text}"
             )
 
     def get_agents(self, chatbot_uuid: str) -> list[Agent]:
@@ -320,8 +326,8 @@ class GPTTrainer:
             logger.debug(f"Fetched agents for chatbot {chatbot_uuid} - {response.text}")
             return [Agent(**agent) for agent in response.json()]
         else:
-            raise Exception(
-                f"Failed to get agents for chatbot {chatbot_uuid} - {response.status_code} - {response.text}"
+            raise GPTTrainerError(
+                f"Failed to get agents for chatbot {chatbot_uuid} - HTTP {response.status_code}: {response.text}"
             )
 
     def update_agent(self, agent_uuid: str, options: AgentUpdateOptions):
@@ -335,8 +341,8 @@ class GPTTrainer:
             logger.debug(f"Updated agent {agent_uuid} - {response.text}")
             return Agent(**response.json())
         else:
-            raise Exception(
-                f"Failed to update agent {agent_uuid} - {response.status_code} - {response.text}"
+            raise GPTTrainerError(
+                f"Failed to update agent {agent_uuid} - HTTP {response.status_code}: {response.text}"
             )
 
     def is_model_string_valid(self, model: str) -> bool:
