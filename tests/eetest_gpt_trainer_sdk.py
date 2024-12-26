@@ -22,16 +22,15 @@ gpt_trainer = GPTTrainer(
     base_url=os.getenv("GPT_TRAINER_API_URL"),
 )
 
-# # delete testing chatbots
-# names_to_delete = ["test-chatbot"]
-# chatbots = gpt_trainer.get_chatbots()
-# chatbots_to_delete = [
-#     chatbot for chatbot in chatbots if chatbot.name in names_to_delete
-# ]
-# for chatbot in chatbots_to_delete:
-#     resp = gpt_trainer.delete_chatbot(chatbot.uuid)
-#     logger.info(f"Deleted chatbot {chatbot.name} with uuid {chatbot.uuid} - {resp}")
-# exit()
+# delete previous testing chatbots
+names_to_delete = ["test-chatbot"]
+chatbots = gpt_trainer.get_chatbots()
+chatbots_to_delete = [
+    chatbot for chatbot in chatbots if chatbot.name in names_to_delete
+]
+for chatbot in chatbots_to_delete:
+    resp = gpt_trainer.delete_chatbot(chatbot.uuid)
+    logger.info(f"Deleted chatbot {chatbot.name} with uuid {chatbot.uuid} - {resp}")
 
 
 chatbot = gpt_trainer.create_chatbot("test-chatbot")
@@ -55,9 +54,7 @@ temp_file_name = "test.txt"
 with open(temp_file_name, "w") as f:
     f.write("Yesterday, Alice and Bob talked about their favorite pizza restaurants.")
 with open(temp_file_name, "rb") as f:
-    upload_response = gpt_trainer.upload_data_source_directly(
-        chatbot.uuid, f, temp_file_name
-    )
+    upload_response = gpt_trainer.upload_data_source(chatbot.uuid, f, temp_file_name)
 logger.info(upload_response)
 os.remove(temp_file_name)
 

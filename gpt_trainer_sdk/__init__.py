@@ -92,7 +92,7 @@ class ChatMessageCitation:
     type: str
 
 
-type ChatMessageCitations = dict[str, ChatMessageCitation]
+ChatMessageCitations = dict[str, ChatMessageCitation]
 
 
 @dataclass
@@ -155,7 +155,7 @@ class Agent:
     data_source_uuids: list[str]
     description: str
     enabled: int
-    meta: dict
+    meta: AgentMeta
     modified_at: datetime
     name: str
     prompt: str
@@ -167,11 +167,11 @@ class Agent:
 
 @dataclass
 class AgentUpdateOptions:
-    name: str = None
-    description: str = None
-    prompt: str = None
-    model: str = None
-    enabled: bool = None
+    name: str | None = None
+    description: str | None = None
+    prompt: str | None = None
+    model: str | None = None
+    enabled: bool | None = None
 
 
 class GPTTrainer:
