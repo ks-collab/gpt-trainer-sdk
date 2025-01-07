@@ -9,7 +9,7 @@ import os
 
 from dotenv import load_dotenv
 
-from gpt_trainer_sdk import GPTTrainer, AgentUpdateOptions
+from gpt_trainer_sdk import GPTTrainer, AgentUpdateOptions, GPTTrainerError
 
 logging.basicConfig(
     level=logging.DEBUG, format="%(levelname)s - %(name)s - %(message)s"
@@ -18,8 +18,8 @@ logger = logging.getLogger(__name__)
 
 load_dotenv()
 gpt_trainer = GPTTrainer(
-    api_key=os.getenv("GPT_TRAINER_API_KEY"),
-    base_url=os.getenv("GPT_TRAINER_API_URL"),
+    api_key=os.getenv("GPT_TRAINER_API_KEY", ""),
+    base_url=os.getenv("GPT_TRAINER_API_URL", ""),
 )
 
 # delete previous testing chatbots
@@ -47,6 +47,22 @@ resp = gpt_trainer.update_agent(
     ),
 )
 agents = gpt_trainer.get_agents(chatbot.uuid)
+
+# upload a document with unsupported file type
+logger.info("uploading file with unsupported file type")
+temp_file_unsupported = "expect_failure.foobar"
+with open(temp_file_unsupported, "w") as f:
+    f.write("Yesterday, Alice and Bob talked about their favorite pizza restaurants.")
+with open(temp_file_unsupported, "rb") as f:
+    try:
+        upload_response_unsupported = gpt_trainer.upload_data_source(
+            chatbot.uuid, f, temp_file_unsupported
+        )
+        assert False, "Expected an exception for unsupported file type"
+    except GPTTrainerError as e:
+        logger.info(f"Expected error: {e}")
+        assert "file type not allowed" in str(e)
+os.remove(temp_file_unsupported)
 
 # upload documents
 logger.info("uploading file")
