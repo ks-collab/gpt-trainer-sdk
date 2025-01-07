@@ -317,6 +317,25 @@ class GPTTrainer:
                 f"Failed to get data sources - HTTP {response.status_code}: {response.text}"
             )
 
+    def delete_data_source(self, data_source_uuid: str):
+        """Delete a data source by its UUID.
+
+        Args:
+            data_source_uuid: The UUID of the data source to delete
+
+        Raises:
+            GPTTrainerError: If the API request fails
+        """
+        url = f"{self.base_url}/data-source/{data_source_uuid}/delete"
+        response = requests.post(url, headers=self.headers)
+
+        if response.status_code == 200:
+            logger.debug(f"Data source {data_source_uuid} deleted - {response.text}")
+        else:
+            raise GPTTrainerError(
+                f"Failed to delete data source {data_source_uuid} - HTTP {response.status_code}: {response.text}"
+            )
+
     def get_agents(self, chatbot_uuid: str) -> list[Agent]:
         url = f"{self.base_url}/chatbot/{chatbot_uuid}/agents"
 

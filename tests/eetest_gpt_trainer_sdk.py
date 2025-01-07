@@ -94,4 +94,8 @@ logger.info(message)
 
 assert "pizza" in message.response
 
+# delete data source
+gpt_trainer.delete_data_source(data_sources[0].uuid)
+
+# delete chatbot
 gpt_trainer.delete_chatbot(chatbot.uuid)
