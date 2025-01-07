@@ -333,9 +333,9 @@ class GPTTrainer:
     def update_agent(self, agent_uuid: str, options: AgentUpdateOptions):
         url = f"{self.base_url}/agent/{agent_uuid}/update"
 
-        options = {k: v for k, v in options.__dict__.items() if v is not None}
+        options_dict = {k: v for k, v in options.__dict__.items() if v is not None}
 
-        response = requests.post(url, headers=self.headers, json=options)
+        response = requests.post(url, headers=self.headers, json=options_dict)
 
         if response.status_code == 200:
             logger.debug(f"Updated agent {agent_uuid} - {response.text}")
