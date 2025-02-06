@@ -1,6 +1,6 @@
 import logging
 from dataclasses import dataclass, field
-from typing import Literal, BinaryIO
+from typing import Literal, BinaryIO, Optional
 from datetime import datetime
 import json
 
@@ -112,6 +112,7 @@ class ChatMessage:
     response: str
     uuid: str
     session_documents: list
+    ai_context_json: Optional[str]
 
 
 @dataclass

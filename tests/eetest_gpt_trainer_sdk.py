@@ -94,6 +94,10 @@ logger.info(message)
 
 assert "pizza" in message.response
 
+# get messages
+messages = gpt_trainer.get_messages(session.uuid)
+logger.info(messages)
+
 # delete data source
 gpt_trainer.delete_data_source(data_sources[0].uuid)
 
