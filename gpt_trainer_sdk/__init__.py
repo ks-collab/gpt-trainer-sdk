@@ -304,6 +304,26 @@ class GPTTrainer:
                 f"Failed to upload file - HTTP {response.status_code}: {response.text}"
             )
 
+    def upload_data_source_from_aws_s3(
+        self, chatbot_uuid: str, s3_resource, bucket: str, key: str, file_name: str
+    ) -> DataSource:
+        """Upload a data source from an AWS S3 bucket.
+
+        Args:
+            chatbot_uuid: The UUID of the chatbot to upload the data source to
+            s3_resource: The S3 resource object, e.g. with `boto3.resource("s3")`
+            bucket: The name of the S3 bucket
+            key: The key of the file in the S3 bucket
+            file_name: The name of the file to upload
+
+        Returns:
+            The data source object
+        """
+
+        obj = s3_resource.Object(bucket, key)
+        f = obj.get()["Body"].read()
+        return self.upload_data_source(chatbot_uuid, f, file_name)
+
     def get_data_sources(self, chatbot_uuid: str) -> list[DataSourceFull]:
         url = f"{self.base_url}/chatbot/{chatbot_uuid}/data-sources"
 
