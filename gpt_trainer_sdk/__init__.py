@@ -112,7 +112,7 @@ class ChatMessage:
     response: str
     uuid: str
     session_documents: list
-    ai_context_json: Optional[str]
+    ai_context_json: Optional[str] = "{}"
 
 
 @dataclass
