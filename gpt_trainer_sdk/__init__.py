@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 from typing import Literal, BinaryIO, Optional
 from datetime import datetime
 import json
+import inspect
 
 import requests
 
@@ -132,6 +133,12 @@ class DataSource:
         "fail",
     ]
     type: Literal["upload", "link", "google-drive", "table", "image", "qa", "video"]
+
+    @classmethod
+    def from_dict(cls, args: dict):
+        return cls(
+            **{k: v for k, v in args.items() if k in inspect.signature(cls).parameters}
+        )
 
 
 @dataclass
@@ -299,10 +306,10 @@ class GPTTrainer:
 
         if response.status_code == 200:
             logger.debug(f"File upload successful - {response.text}")
-            return DataSource(**response.json())
+            return DataSource.from_dict(response.json())
         elif response.status_code == 409:
             logger.debug(f"File already exists - {response.text}")
-            return DataSource(**response.json())
+            return DataSource.from_dict(response.json())
         else:
             raise GPTTrainerError(
                 f"Failed to upload file - HTTP {response.status_code}: {response.text}"
