@@ -300,6 +300,9 @@ class GPTTrainer:
         if response.status_code == 200:
             logger.debug(f"File upload successful - {response.text}")
             return DataSource(**response.json())
+        elif response.status_code == 409:
+            logger.debug(f"File already exists - {response.text}")
+            return DataSource(**response.json())
         else:
             raise GPTTrainerError(
                 f"Failed to upload file - HTTP {response.status_code}: {response.text}"
