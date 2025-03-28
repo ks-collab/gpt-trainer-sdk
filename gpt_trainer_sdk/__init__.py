@@ -123,6 +123,7 @@ class DataSource:
     title: str
     status: Literal[
         "await",
+        "queued",
         "pending",
         "success",
         "extracting",
