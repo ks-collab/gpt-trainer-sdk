@@ -98,6 +98,9 @@ assert "pizza" in message.response
 messages = gpt_trainer.get_messages(session.uuid)
 logger.info(messages)
 
+# retry data source
+gpt_trainer.retry_data_source(data_sources[0].uuid)
+
 # delete data source
 gpt_trainer.delete_data_source(data_sources[0].uuid)
 
