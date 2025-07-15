@@ -196,9 +196,10 @@ class GPTTrainer:
         self.headers = {
             "Authorization": f"Bearer {api_key}",
         }
+        self.api_url = f"{self.base_url}/api/v1"
 
     def get_chatbots(self) -> list[Chatbot]:
-        url = f"{self.base_url}/api/v1/chatbots"
+        url = f"{self.api_url}/chatbots"
         response = requests.get(url, headers=self.headers)
 
         if response.status_code == 200:
@@ -209,7 +210,7 @@ class GPTTrainer:
             )
 
     def create_chatbot(self, name: str, show_citations: bool = False) -> Chatbot:
-        url = f"{self.base_url}/api/v1/chatbot/create"
+        url = f"{self.api_url}/chatbot/create"
         data = {
             "name": name,
             "rate_limit": [20, 240],
@@ -228,7 +229,7 @@ class GPTTrainer:
             )
 
     def delete_chatbot(self, chatbot_uuid: str):
-        url = f"{self.base_url}/api/v1/chatbot/{chatbot_uuid}/delete"
+        url = f"{self.api_url}/chatbot/{chatbot_uuid}/delete"
         response = requests.delete(url, headers=self.headers)
 
         if response.status_code == 200:
@@ -239,7 +240,7 @@ class GPTTrainer:
             )
 
     def create_chat_session(self, chatbot_uuid: str) -> ChatSession:
-        url = f"{self.base_url}/api/v1/chatbot/{chatbot_uuid}/session/create"
+        url = f"{self.api_url}/chatbot/{chatbot_uuid}/session/create"
         response = requests.post(url, headers=self.headers)
 
         if response.status_code == 200:
@@ -251,7 +252,7 @@ class GPTTrainer:
             )
 
     def send_message(self, session_uuid: str, query: str) -> SendMessageResponse:
-        url = f"{self.base_url}/api/v1/session/{session_uuid}/message/non-stream"
+        url = f"{self.api_url}/session/{session_uuid}/message/non-stream"
         response = requests.post(url, headers=self.headers, json={"query": query})
 
         if response.status_code == 200:
@@ -275,7 +276,7 @@ class GPTTrainer:
             return {}
 
     def get_messages(self, session_uuid: str) -> list[ChatMessage]:
-        url = f"{self.base_url}/api/v1/session/{session_uuid}/messages"
+        url = f"{self.api_url}/session/{session_uuid}/messages"
         response = requests.get(url, headers=self.headers)
 
         if response.status_code == 200:
@@ -295,7 +296,7 @@ class GPTTrainer:
     def upload_data_source(
         self, chatbot_uuid: str, file: BinaryIO, file_name: str
     ) -> DataSource:
-        url = f"{self.base_url}/api/v1/chatbot/{chatbot_uuid}/data-source/upload"
+        url = f"{self.api_url}/chatbot/{chatbot_uuid}/data-source/upload"
         files = {"file": (file_name, file)}
 
         # we don't need reference_source_link
@@ -335,7 +336,7 @@ class GPTTrainer:
         return self.upload_data_source(chatbot_uuid, f, file_name)
 
     def get_data_sources(self, chatbot_uuid: str) -> list[DataSourceFull]:
-        url = f"{self.base_url}/api/v1/chatbot/{chatbot_uuid}/data-sources"
+        url = f"{self.api_url}/chatbot/{chatbot_uuid}/data-sources"
 
         response = requests.get(url, headers=self.headers)
 
@@ -356,7 +357,7 @@ class GPTTrainer:
         Raises:
             GPTTrainerError: If the API request fails
         """
-        url = f"{self.base_url}/api/v1/data-source/{data_source_uuid}/delete"
+        url = f"{self.api_url}/data-source/{data_source_uuid}/delete"
         response = requests.post(url, headers=self.headers)
 
         if response.status_code == 200:
@@ -391,7 +392,7 @@ class GPTTrainer:
             )
 
     def get_agents(self, chatbot_uuid: str) -> list[Agent]:
-        url = f"{self.base_url}/api/v1/chatbot/{chatbot_uuid}/agents"
+        url = f"{self.api_url}/chatbot/{chatbot_uuid}/agents"
 
         response = requests.get(url, headers=self.headers)
 
@@ -404,7 +405,7 @@ class GPTTrainer:
             )
 
     def update_agent(self, agent_uuid: str, options: AgentUpdateOptions):
-        url = f"{self.base_url}/api/v1/agent/{agent_uuid}/update"
+        url = f"{self.api_url}/agent/{agent_uuid}/update"
 
         options_dict = {k: v for k, v in options.__dict__.items() if v is not None}
 
