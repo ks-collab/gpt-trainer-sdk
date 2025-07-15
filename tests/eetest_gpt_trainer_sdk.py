@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 gpt_trainer = GPTTrainer(
     api_key=os.getenv("GPT_TRAINER_API_KEY", ""),
-    base_url=os.getenv("GPT_TRAINER_API_URL", ""),
+    base_url=os.getenv("GPT_TRAINER_API_URL", "https://app.gpt-trainer.com"),
 )
 
 # delete previous testing chatbots

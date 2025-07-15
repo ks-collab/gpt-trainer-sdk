@@ -1,16 +1,11 @@
-[tool.poetry]
+[project]
 name = "gpt-trainer-sdk"
 version = "0.2.0"
-description = ""
+description = "The official Python library for the GPT-trainer API"
 authors = ["Michael T. Chang <michael.chang@petal.org>"]
 readme = "README.md"
-
-[tool.poetry.dependencies]
-python = "^3.10"
-requests = "^2.32.3"
-python-dotenv = "^1.0.1"
-
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires-python = ">=3.12"
+dependencies = [
+    "python-dotenv>=1.1.1",
+    "requests>=2.32.4",
+]
