@@ -94,6 +94,14 @@ logger.info(message)
 
 assert "pizza" in message.response
 
+# send message stream
+num_chunks = 0
+for chunk in gpt_trainer.send_message_stream(session.uuid, "Write a 5-paragraph essay explaining what machine learning is."):
+    num_chunks += 1
+    logger.info(f"Streaming response chunk: {chunk}")
+    # print(chunk, end='', flush=True)  # Print without newlines for smooth output
+assert num_chunks >= 2, "Expected at least 2 chunks"
+
 # get messages
 messages = gpt_trainer.get_messages(session.uuid)
 logger.info(messages)

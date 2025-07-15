@@ -1,6 +1,6 @@
 import logging
 from dataclasses import dataclass, field
-from typing import Literal, BinaryIO, Optional
+from typing import Literal, BinaryIO, Optional, Iterator
 from datetime import datetime
 import json
 import inspect
@@ -261,6 +261,30 @@ class GPTTrainer:
         else:
             raise GPTTrainerError(
                 f"Failed to send chat message - HTTP {response.status_code}: {response.text}"
+            )
+
+    def send_message_stream(self, session_uuid: str, query: str) -> Iterator[str]:
+        """Send a message and yield streaming response chunks.
+        
+        Args:
+            session_uuid: The UUID of the chat session
+            query: The message to send
+            
+        Yields:
+            str: Individual chunks of the streaming response
+        """
+        url = f"{self.api_url}/session/{session_uuid}/message/stream"
+        response = requests.post(url, headers=self.headers, json={"query": query}, stream=True)
+
+        if response.status_code == 200:
+            for line in response.iter_lines(decode_unicode=True):
+                  # Skip empty lines
+                if line:
+                    logger.debug(f"Streaming response chunk: {line}")
+                    yield line
+        else:
+            raise GPTTrainerError(
+                f"Failed to send streaming chat message - HTTP {response.status_code}: {response.text}"
             )
 
     @staticmethod
