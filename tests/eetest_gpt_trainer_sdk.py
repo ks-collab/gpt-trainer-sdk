@@ -10,7 +10,7 @@ import os
 
 from dotenv import load_dotenv
 
-from gpt_trainer_sdk import GPTTrainer, AgentUpdateOptions, GPTTrainerError, AgentCreateOptions
+from gpt_trainer_sdk import GPTTrainer, AgentUpdateOptions, GPTTrainerError, AgentCreateOptions, SourceTagCreateOptions, SourceTagUpdateOptions
 
 logging.basicConfig(
     level=logging.DEBUG, format="%(levelname)s - %(name)s - %(message)s"
@@ -96,6 +96,25 @@ while data_sources[0].status != "success":
     data_sources = gpt_trainer.get_data_sources(chatbot.uuid)
 
 logger.info(data_sources)
+
+# test source tags
+logger.info("testing source tags")
+source_tag = gpt_trainer.create_source_tag(chatbot.uuid, SourceTagCreateOptions(
+    name="Test Tag",
+    color="#FF5733",
+    data_source_uuids=[data_sources[0].uuid]
+))
+source_tags = gpt_trainer.get_source_tags(chatbot.uuid)
+assert len(source_tags) >= 1, "Expected at least one source tag"
+updated_source_tag = gpt_trainer.update_source_tag(source_tag.uuid, SourceTagUpdateOptions(
+    name="Updated Test Tag",
+    color="#33FF57",
+    data_source_uuids=[data_sources[0].uuid]
+))
+assert updated_source_tag.name == "Updated Test Tag", "Expected name to be updated"
+assert updated_source_tag.color == "#33FF57", "Expected color to be updated"
+delete_response = gpt_trainer.delete_source_tag(source_tag.uuid)
+assert delete_response.success, "Expected successful deletion"
 
 # send message
 session = gpt_trainer.create_chat_session(chatbot.uuid)

@@ -203,6 +203,35 @@ class AgentUpdateOptions:
     enabled: bool | None = None
 
 
+@dataclass
+class SourceTag:
+    uuid: str
+    name: str
+    color: str
+    data_source_uuids: list[str]
+    created_at: str
+    modified_at: str
+
+
+@dataclass
+class SourceTagCreateOptions:
+    name: str
+    color: str
+    data_source_uuids: list[str] | None = None
+
+
+@dataclass
+class SourceTagUpdateOptions:
+    name: str | None = None
+    color: str | None = None
+    data_source_uuids: list[str] | None = None
+
+
+@dataclass
+class DeleteSourceTagResponse:
+    success: bool
+
+
 class GPTTrainerError(Exception):
     """Raised when the GPT-trainer API returns an error response"""
 
@@ -489,11 +518,55 @@ class GPTTrainer:
         else:
             raise GPTTrainerError(f"Failed to delete agent {agent_uuid} - HTTP {response.status_code}: {response.text}")
 
-    # update source tag
-    # https://app.innochat.ch/v1/source-tag/<uuid>/update
+    def create_source_tag(self, chatbot_uuid: str, options: SourceTagCreateOptions) -> SourceTag:
+        url = f"{self.api_url}/chatbot/{chatbot_uuid}/source-tag/create"
+        options_dict = {k: v for k, v in options.__dict__.items() if v is not None}
+        response = requests.post(url, headers=self.headers, json=options_dict, verify=self.verify_ssl)
+        
+        if response.status_code == 200:
+            logger.debug(f"Source tag created for chatbot {chatbot_uuid} - {response.text}")
+            return SourceTag(**response.json())
+        else:
+            raise GPTTrainerError(
+                f"Failed to create source tag for chatbot {chatbot_uuid} - HTTP {response.status_code}: {response.text}"
+            )
 
-    # delete source tag
-    # /v1/source-tag/ca340162596b4d3abc9ac316272d9e77/delete?
+    def get_source_tags(self, chatbot_uuid: str) -> list[SourceTag]:
+        url = f"{self.api_url}/chatbot/{chatbot_uuid}/source-tags"
+        response = requests.get(url, headers=self.headers, verify=self.verify_ssl)
+        
+        if response.status_code == 200:
+            logger.debug(f"Fetched source tags for chatbot {chatbot_uuid} - {response.text}")
+            return [SourceTag(**tag) for tag in response.json()]
+        else:
+            raise GPTTrainerError(
+                f"Failed to get source tags for chatbot {chatbot_uuid} - HTTP {response.status_code}: {response.text}"
+            )
+
+    def update_source_tag(self, source_tag_uuid: str, options: SourceTagUpdateOptions) -> SourceTag:
+        url = f"{self.api_url}/source-tag/{source_tag_uuid}/update"
+        options_dict = {k: v for k, v in options.__dict__.items() if v is not None}
+        response = requests.post(url, headers=self.headers, json=options_dict, verify=self.verify_ssl)
+        
+        if response.status_code == 200:
+            logger.debug(f"Updated source tag {source_tag_uuid} - {response.text}")
+            return SourceTag(**response.json())
+        else:
+            raise GPTTrainerError(
+                f"Failed to update source tag {source_tag_uuid} - HTTP {response.status_code}: {response.text}"
+            )
+
+    def delete_source_tag(self, source_tag_uuid: str) -> DeleteSourceTagResponse:
+        url = f"{self.api_url}/source-tag/{source_tag_uuid}/delete"
+        response = requests.delete(url, headers=self.headers, verify=self.verify_ssl)
+        
+        if response.status_code == 200:
+            logger.debug(f"Deleted source tag {source_tag_uuid} - {response.text}")
+            return DeleteSourceTagResponse(**response.json())
+        else:
+            raise GPTTrainerError(
+                f"Failed to delete source tag {source_tag_uuid} - HTTP {response.status_code}: {response.text}"
+            )
 
     def is_model_string_valid(self, model: str) -> bool:
         return model in MODEL_COSTS
