@@ -1,6 +1,7 @@
 """Integration test of the SDK basic functions
 
-run this test script with `poetry run python -m tests.eetest_gpt_trainer_sdk`
+1. set up .env
+2. run this test script with `uv run python -m tests.eetest_gpt_trainer_sdk`
 """
 
 import logging
@@ -9,7 +10,7 @@ import os
 
 from dotenv import load_dotenv
 
-from gpt_trainer_sdk import GPTTrainer, AgentUpdateOptions, GPTTrainerError
+from gpt_trainer_sdk import GPTTrainer, AgentUpdateOptions, GPTTrainerError, AgentCreateOptions
 
 logging.basicConfig(
     level=logging.DEBUG, format="%(levelname)s - %(name)s - %(message)s"
@@ -20,6 +21,7 @@ load_dotenv()
 gpt_trainer = GPTTrainer(
     api_key=os.getenv("GPT_TRAINER_API_KEY", ""),
     base_url=os.getenv("GPT_TRAINER_API_URL", "https://app.gpt-trainer.com"),
+    verify_ssl=False if "localhost" in os.getenv("GPT_TRAINER_API_URL", "") else True
 )
 
 # delete previous testing chatbots
@@ -47,6 +49,17 @@ resp = gpt_trainer.update_agent(
     ),
 )
 agents = gpt_trainer.get_agents(chatbot.uuid)
+
+# create and delete agent
+# expected response to delete agent: {"success": true}
+new_agent = gpt_trainer.create_agent(chatbot.uuid, AgentCreateOptions(
+    name="Test Agent Name",
+    type="user-facing",
+    description="You are a test agent",
+    prompt="You are a test agent",
+))
+resp = gpt_trainer.delete_agent(new_agent.uuid)
+assert resp.success, "Expected success response"
 
 # upload a document with unsupported file type
 logger.info("uploading file with unsupported file type")
