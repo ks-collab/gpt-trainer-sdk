@@ -6,61 +6,30 @@ import json
 import inspect
 
 import requests
+from .llms import ModelType, is_valid_model, get_model_cost
+
+# Export the ModelType enum for easy access
+__all__ = [
+    "GPTTrainer",
+    "ModelType",
+    "is_valid_model",
+    "get_model_cost",
+    "Chatbot",
+    "ChatSession",
+    "SendMessageResponse",
+    "DeleteAgentResponse",
+    "ChatMessageCitation",
+    "Agent",
+    "AgentCreateOptions",
+    "AgentUpdateOptions",
+    "SourceTag",
+    "SourceTagCreateOptions",
+    "SourceTagUpdateOptions",
+    "DeleteSourceTagResponse",
+    "GPTTrainerError",
+]
 
 logger = logging.getLogger(__name__)
-
-
-MODEL_COSTS = {
-    "gpt-3.5-turbo-4k": 1,
-    "gpt-3.5-turbo-16k": 4,
-    "gpt-4-0125-preview-1k": 5,
-    "gpt-4-0125-preview-2k": 10,
-    "gpt-4-0125-preview-4k": 20,
-    "gpt-4-0125-preview-8k": 35,
-    "gpt-4-0125-preview-16k": 60,
-    "gpt-4-0125-preview-32k": 120,
-    "gpt-4-0125-preview-64k": 220,
-    "gpt-4o-1k": 3,
-    "gpt-4o-2k": 5,
-    "gpt-4o-4k": 10,
-    "gpt-4o-8k": 20,
-    "gpt-4o-16k": 40,
-    "gpt-4o-32k": 60,
-    "gpt-4o-64k": 120,
-    "gpt-4o-mini-4k": 1,
-    "gpt-4o-mini-16k": 2,
-    "gpt-4o-mini-32k": 6,
-    "gpt-4o-mini-64k": 10,
-    # cladue-3.5-sonnet
-    "claude-3.5-sonnet-2k": 4,
-    "claude-3.5-sonnet-4k": 8,
-    "claude-3.5-sonnet-8k": 16,
-    "claude-3.5-sonnet-16k": 27,
-    "claude-3.5-sonnet-32k": 45,
-    "claude-3.5-sonnet-64k": 75,
-    # claude-3-opus
-    "claude-3-opus-2k": 16,
-    "claude-3-opus-4k": 40,
-    "claude-3-opus-8k": 80,
-    "claude-3-opus-16k": 135,
-    "claude-3-opus-32k": 225,
-    "claude-3-opus-64k": 375,
-    # claude-3-haiku
-    "claude-3-haiku-4k": 1,
-    "claude-3-haiku-8k": 2,
-    "claude-3-haiku-16k": 3,
-    "claude-3-haiku-32k": 4,
-    "claude-3-haiku-64k": 6,
-    # gemini-1.5-flash
-    "gemini-1.5-flash-64k": 1,
-    # gemini-1.5-pro
-    "gemini-1.5-pro-2k": 3,
-    "gemini-1.5-pro-4k": 7,
-    "gemini-1.5-pro-8k": 14,
-    "gemini-1.5-pro-16k": 24,
-    "gemini-1.5-pro-32k": 45,
-    "gemini-1.5-pro-64k": 80,
-}
 
 
 @dataclass
@@ -182,10 +151,12 @@ class Agent:
 @dataclass
 class AgentCreateOptions:
     name: str
-    type: Literal["user-facing", "background", "human-escalation", "pre-canned", "spam-defense"]
+    type: Literal[
+        "user-facing", "background", "human-escalation", "pre-canned", "spam-defense"
+    ]
     description: str | None = None
     prompt: str | None = None
-    model: str | None = None
+    model: ModelType | None = None
     temperature: float | None = None
     bias: float | None = None
     stickness: float | None = None
@@ -199,7 +170,7 @@ class AgentUpdateOptions:
     name: str | None = None
     description: str | None = None
     prompt: str | None = None
-    model: str | None = None
+    model: ModelType | None = None
     enabled: bool | None = None
 
 
@@ -240,16 +211,23 @@ class GPTTrainerError(Exception):
 
 class GPTTrainer:
 
-    def __init__(self, api_key: str, base_url: str = "https://app.gpt-trainer.com", verify_ssl: bool = True):
+    def __init__(
+        self,
+        api_key: str,
+        base_url: str = "https://app.gpt-trainer.com",
+        verify_ssl: bool = True,
+    ):
         if not verify_ssl:
             logger.warning("SSL verification is disabled")
-        
+
         self.base_url = base_url
         self.headers = {
             "Authorization": f"Bearer {api_key}",
         }
         self.api_url = f"{self.base_url}/api/v1"
         self.verify_ssl = verify_ssl
+
+        logger.debug(f"Initialized GPTTrainer with base URL {self.base_url}")
 
     def get_chatbots(self) -> list[Chatbot]:
         url = f"{self.api_url}/chatbots"
@@ -271,7 +249,9 @@ class GPTTrainer:
             "show_citations": show_citations,
             "visibility": "private",
         }
-        response = requests.post(url, headers=self.headers, json=data, verify=self.verify_ssl)
+        response = requests.post(
+            url, headers=self.headers, json=data, verify=self.verify_ssl
+        )
 
         if response.status_code == 200:
             logger.debug(f"Chatbot created - {response.text}")
@@ -304,9 +284,32 @@ class GPTTrainer:
                 f"Failed to create chat session - HTTP {response.status_code}: {response.text}"
             )
 
-    def send_message(self, session_uuid: str, query: str) -> SendMessageResponse:
+    def send_message(
+        self,
+        session_uuid: str,
+        query: str,
+        pre_canned_response: bool = None,
+        direct_function_response: bool = None,
+        session_document_uuids: list[str] = None,
+    ) -> SendMessageResponse:
+        payload = {
+            "query": query,
+        }
+        if pre_canned_response is not None:
+            payload["pre_canned_response"] = pre_canned_response
+        if direct_function_response is not None:
+            payload["direct_function_response"] = direct_function_response
+        if session_document_uuids is not None:
+            payload["session_document_uuids"] = session_document_uuids
+
         url = f"{self.api_url}/session/{session_uuid}/message/non-stream"
-        response = requests.post(url, headers=self.headers, json={"query": query}, verify=self.verify_ssl)
+        logger.debug(f"Sending message with payload {payload}")
+        response = requests.post(
+            url,
+            headers=self.headers,
+            json=payload,
+            verify=self.verify_ssl,
+        )
 
         if response.status_code == 200:
             logger.debug(f"Chat message reply received - {response.text}")
@@ -318,20 +321,26 @@ class GPTTrainer:
 
     def send_message_stream(self, session_uuid: str, query: str) -> Iterator[str]:
         """Send a message and yield streaming response chunks.
-        
+
         Args:
             session_uuid: The UUID of the chat session
             query: The message to send
-            
+
         Yields:
             str: Individual chunks of the streaming response
         """
         url = f"{self.api_url}/session/{session_uuid}/message/stream"
-        response = requests.post(url, headers=self.headers, json={"query": query}, stream=True, verify=self.verify_ssl)
+        response = requests.post(
+            url,
+            headers=self.headers,
+            json={"query": query},
+            stream=True,
+            verify=self.verify_ssl,
+        )
 
         if response.status_code == 200:
             for line in response.iter_lines(decode_unicode=True):
-                  # Skip empty lines
+                # Skip empty lines
                 if line:
                     logger.debug(f"Streaming response chunk: {line}")
                     yield line
@@ -379,7 +388,9 @@ class GPTTrainer:
         # we don't need reference_source_link
         payload = {"reference_source_link": None}
 
-        response = requests.post(url, files=files, data=payload, headers=self.headers, verify=self.verify_ssl)
+        response = requests.post(
+            url, files=files, data=payload, headers=self.headers, verify=self.verify_ssl
+        )
 
         if response.status_code == 200:
             logger.debug(f"File upload successful - {response.text}")
@@ -456,7 +467,9 @@ class GPTTrainer:
         url = f"{self.base_url}/api/data-sources/restart"
         payload = {"uuids": [data_source_uuid]}
 
-        response = requests.post(url, headers=self.headers, json=payload, verify=self.verify_ssl)
+        response = requests.post(
+            url, headers=self.headers, json=payload, verify=self.verify_ssl
+        )
 
         if response.status_code == 200:
             logger.debug(
@@ -480,11 +493,13 @@ class GPTTrainer:
             raise GPTTrainerError(
                 f"Failed to get agents for chatbot {chatbot_uuid} - HTTP {response.status_code}: {response.text}"
             )
-    
+
     def create_agent(self, chatbot_uuid: str, options: AgentCreateOptions) -> Agent:
         url = f"{self.api_url}/chatbot/{chatbot_uuid}/agent/create"
         options_dict = {k: v for k, v in options.__dict__.items() if v is not None}
-        response = requests.post(url, headers=self.headers, json=options_dict, verify=self.verify_ssl)
+        response = requests.post(
+            url, headers=self.headers, json=options_dict, verify=self.verify_ssl
+        )
         if response.status_code == 200:
             logger.debug(f"Agent created for chatbot {chatbot_uuid} - {response.text}")
             return Agent(**response.json())
@@ -492,14 +507,15 @@ class GPTTrainer:
             raise GPTTrainerError(
                 f"Failed to create agent for chatbot {chatbot_uuid} - HTTP {response.status_code}: {response.text}"
             )
-    
 
     def update_agent(self, agent_uuid: str, options: AgentUpdateOptions):
         url = f"{self.api_url}/agent/{agent_uuid}/update"
 
         options_dict = {k: v for k, v in options.__dict__.items() if v is not None}
 
-        response = requests.post(url, headers=self.headers, json=options_dict, verify=self.verify_ssl)
+        response = requests.post(
+            url, headers=self.headers, json=options_dict, verify=self.verify_ssl
+        )
 
         if response.status_code == 200:
             logger.debug(f"Updated agent {agent_uuid} - {response.text}")
@@ -508,7 +524,7 @@ class GPTTrainer:
             raise GPTTrainerError(
                 f"Failed to update agent {agent_uuid} - HTTP {response.status_code}: {response.text}"
             )
-        
+
     def delete_agent(self, agent_uuid: str) -> DeleteAgentResponse:
         url = f"{self.api_url}/agent/{agent_uuid}/delete"
         response = requests.delete(url, headers=self.headers, verify=self.verify_ssl)
@@ -516,15 +532,23 @@ class GPTTrainer:
             logger.debug(f"Deleted agent {agent_uuid} - {response.text}")
             return DeleteAgentResponse(**response.json())
         else:
-            raise GPTTrainerError(f"Failed to delete agent {agent_uuid} - HTTP {response.status_code}: {response.text}")
+            raise GPTTrainerError(
+                f"Failed to delete agent {agent_uuid} - HTTP {response.status_code}: {response.text}"
+            )
 
-    def create_source_tag(self, chatbot_uuid: str, options: SourceTagCreateOptions) -> SourceTag:
+    def create_source_tag(
+        self, chatbot_uuid: str, options: SourceTagCreateOptions
+    ) -> SourceTag:
         url = f"{self.api_url}/chatbot/{chatbot_uuid}/source-tag/create"
         options_dict = {k: v for k, v in options.__dict__.items() if v is not None}
-        response = requests.post(url, headers=self.headers, json=options_dict, verify=self.verify_ssl)
-        
+        response = requests.post(
+            url, headers=self.headers, json=options_dict, verify=self.verify_ssl
+        )
+
         if response.status_code == 200:
-            logger.debug(f"Source tag created for chatbot {chatbot_uuid} - {response.text}")
+            logger.debug(
+                f"Source tag created for chatbot {chatbot_uuid} - {response.text}"
+            )
             return SourceTag(**response.json())
         else:
             raise GPTTrainerError(
@@ -534,20 +558,26 @@ class GPTTrainer:
     def get_source_tags(self, chatbot_uuid: str) -> list[SourceTag]:
         url = f"{self.api_url}/chatbot/{chatbot_uuid}/source-tags"
         response = requests.get(url, headers=self.headers, verify=self.verify_ssl)
-        
+
         if response.status_code == 200:
-            logger.debug(f"Fetched source tags for chatbot {chatbot_uuid} - {response.text}")
+            logger.debug(
+                f"Fetched source tags for chatbot {chatbot_uuid} - {response.text}"
+            )
             return [SourceTag(**tag) for tag in response.json()]
         else:
             raise GPTTrainerError(
                 f"Failed to get source tags for chatbot {chatbot_uuid} - HTTP {response.status_code}: {response.text}"
             )
 
-    def update_source_tag(self, source_tag_uuid: str, options: SourceTagUpdateOptions) -> SourceTag:
+    def update_source_tag(
+        self, source_tag_uuid: str, options: SourceTagUpdateOptions
+    ) -> SourceTag:
         url = f"{self.api_url}/source-tag/{source_tag_uuid}/update"
         options_dict = {k: v for k, v in options.__dict__.items() if v is not None}
-        response = requests.post(url, headers=self.headers, json=options_dict, verify=self.verify_ssl)
-        
+        response = requests.post(
+            url, headers=self.headers, json=options_dict, verify=self.verify_ssl
+        )
+
         if response.status_code == 200:
             logger.debug(f"Updated source tag {source_tag_uuid} - {response.text}")
             return SourceTag(**response.json())
@@ -559,7 +589,7 @@ class GPTTrainer:
     def delete_source_tag(self, source_tag_uuid: str) -> DeleteSourceTagResponse:
         url = f"{self.api_url}/source-tag/{source_tag_uuid}/delete"
         response = requests.delete(url, headers=self.headers, verify=self.verify_ssl)
-        
+
         if response.status_code == 200:
             logger.debug(f"Deleted source tag {source_tag_uuid} - {response.text}")
             return DeleteSourceTagResponse(**response.json())
@@ -569,4 +599,43 @@ class GPTTrainer:
             )
 
     def is_model_string_valid(self, model: str) -> bool:
-        return model in MODEL_COSTS
+        """
+        Check if a model string is valid.
+
+        Args:
+            model: Model name as string
+
+        Returns:
+            True if the model is valid, False otherwise
+        """
+        return is_valid_model(model)
+
+    def upload_session_document(self, file: BinaryIO, filename: str) -> dict:
+        """
+        Upload a file as a chat session document using multipart form data.
+
+        Args:
+            file: Binary file object to upload
+            filename: Filename for the uploaded file
+
+        Returns:
+            dict: Response containing the session document details
+        """
+        files = {"file": (filename, file)}
+        data = {"filename": filename}
+
+        response = requests.post(
+            f"{self.api_url}/session-document/upload",
+            files=files,
+            data=data,
+            headers=self.headers,
+            verify=self.verify_ssl,
+        )
+
+        if response.status_code == 200:
+            logger.debug(f"Session document uploaded - {response.text}")
+            return response.json()
+        else:
+            raise GPTTrainerError(
+                f"Failed to upload session document - HTTP {response.status_code}: {response.text}"
+            )

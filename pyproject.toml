@@ -9,3 +9,16 @@ dependencies = [
     "python-dotenv>=1.1.1",
     "requests>=2.32.4",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.1",
+]
+
+[tool.pytest.ini_options]
+markers = [
+    "incur_costs: tests that incur costs via API calls",
+]
+addopts = [
+    "-m not incur_costs",
+]
