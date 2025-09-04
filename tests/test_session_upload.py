@@ -3,7 +3,7 @@
 1. set up .env
 2. run this test script with:
 
- `uv run pytest tests/test_session_upload.py -rA --log-level=DEBUG -m incur_costs`
+`uv run pytest tests/test_session_upload.py -rA --log-level=DEBUG -m incur_costs`
 """
 
 import pytest
@@ -12,6 +12,7 @@ from datetime import datetime
 import os
 import io
 
+import requests
 from dotenv import load_dotenv
 
 from gpt_trainer_sdk import (
@@ -31,7 +32,6 @@ gpt_trainer = GPTTrainer(
 
 TEST_CHATBOT_PREFIX = "test-chatbot"
 
-
 def delete_testing_chatbots():
     # delete previous testing chatbots
     chatbots = gpt_trainer.get_chatbots()
@@ -45,6 +45,7 @@ def delete_testing_chatbots():
 
 @pytest.mark.incur_costs
 def test_chat_session_file_upload():
+    """Test chat session file upload, multiple uploads, and document-too-long error"""
     # set up chatbot
     delete_testing_chatbots()
     chatbot = gpt_trainer.create_chatbot(
@@ -68,8 +69,9 @@ def test_chat_session_file_upload():
     message = gpt_trainer.send_message(session.uuid, "hello there, what can you do?")
     logger.info(message)
 
-    # Create a file-like object from a hardcoded string
-    file_content = """The Stapler Incident
+    # create in-memory file-like object
+    # this is 565 tokens long
+    TEST_DOCUMENT_CONTENT = """The Stapler Incident
 
 It was a typical Tuesday morning at Acme Corporation when Sarah from accounting discovered that her trusty stapler had mysteriously vanished from her desk. This wasn't just any stapler - it was the red Swingline model that had faithfully served her for three years, through countless reports, expense forms, and the occasional paper jam.
 
@@ -87,13 +89,77 @@ Finally, on Monday morning, Sarah arrived at her desk to find her beloved red Sw
 
 Sarah smiled and tested the stapler. It worked perfectly, just as she remembered. She made a mental note to label her office supplies more clearly in the future, but secretly, she was glad the incident had given her something interesting to talk about during coffee breaks.
 
-The blue Bostitch stapler found a new home in the supply cabinet, where it would wait for the next person who needed a temporary stapling solution. And so the cycle of office supply migration continued, as it always had and always would."""
-    
-    # Convert string to bytes and create BytesIO object
-    file_bytes = file_content.encode('utf-8')
+The blue Bostitch stapler found a new home in the supply cabinet, where it would wait for the next person who needed a temporary stapling solution. And so the cycle of office supply migration continued, as it always had and always would.
+
+"""
+    file_bytes = TEST_DOCUMENT_CONTENT.encode('utf-8')
     file_obj = io.BytesIO(file_bytes)
     
     session_document = gpt_trainer.upload_session_document(file=file_obj, filename="test_file.txt")
     session_document_uuid = session_document["uuid"]
 
-    gpt_trainer.send_message(session.uuid, "Whose stapler vanished?", session_document_uuids=[session_document_uuid])
+    message_response = gpt_trainer.send_message(session.uuid, "Whose stapler vanished?", session_document_uuids=[session_document_uuid])
+    assert "Sarah" in message_response.response
+
+    message_response = gpt_trainer.send_message(session.uuid, "What color was the bad stapler?")
+    assert "blue" in message_response.response
+
+    # expect a too-long document to cause error
+    # 56,500 tokens long
+    long_file_content = TEST_DOCUMENT_CONTENT * 100
+    file_bytes = long_file_content.encode('utf-8')
+    file_obj = io.BytesIO(file_bytes)
+    session_document = gpt_trainer.upload_session_document(file=file_obj, filename="long_test_file.txt")
+    session_document_uuid = session_document["uuid"]
+    message_response = gpt_trainer.send_message(session.uuid, "Who took the stapler?", session_document_uuids=[session_document_uuid])
+    assert "The uploaded file(s) are too long, please reduce the length and try again." in message_response.response
+
+    # a message afterwards should still work
+    message_response = gpt_trainer.send_message(session.uuid, "Who took the stapler?")
+    assert "Bob" in message_response.response 
+
+    # upload a new document
+    file_bytes = "The secret ingredient for Tommy's pizza is 100% real goat cheese".encode('utf-8')
+    file_obj = io.BytesIO(file_bytes)
+    session_document = gpt_trainer.upload_session_document(file=file_obj, filename="test_file_2.txt")
+    session_document_uuid = session_document["uuid"]
+    message_response = gpt_trainer.send_message(session.uuid, "What is the secret ingredient?", session_document_uuids=[session_document_uuid])
+    assert "goat cheese" in message_response.response
+
+@pytest.mark.incur_costs
+def test_chat_session_file_upload_image():
+    """Test chat session image upload"""
+    # set up chatbot
+    delete_testing_chatbots()
+    chatbot = gpt_trainer.create_chatbot(
+        f"{TEST_CHATBOT_PREFIX}-session_file_upload_image-{datetime.now().strftime("%Y%m%d%H%M%S")}"
+    )
+
+    # configure agent for file upload (need larger context)
+    agents = gpt_trainer.get_agents(chatbot.uuid)
+    gpt_trainer.update_agent(
+        agents[0].uuid,
+        AgentUpdateOptions(
+            name="Test Agent Name for File Upload",
+            description="You are a test agent for file upload",
+            prompt="You are a test agent for file upload",
+            model=ModelType.GPT_4O_MINI_32K,
+        ),
+    )
+
+    # send chat message with image upload
+    session = gpt_trainer.create_chat_session(chatbot.uuid)
+    
+    # "Lesson Planning Flow Chart" by VMFoliaki is licensed under CC BY-SA 2.0.
+    img_url = "https://live.staticflickr.com/3305/5807299569_02627eb5a2.jpg"
+    file_bytes = requests.get(img_url).content
+    file_obj = io.BytesIO(file_bytes)
+    session_document = gpt_trainer.upload_session_document(file=file_obj, filename="test_image.jpg")
+    session_document_uuid = session_document["uuid"]
+
+    message_response = gpt_trainer.send_message(session.uuid, "What is the third step in the chart?", session_document_uuids=[session_document_uuid])
+    assert "learning strategies" in message_response.response.lower()
+
+    # chatbot should be able to answer a question about the image that isn't in the image summary
+    message_response = gpt_trainer.send_message(session.uuid, "What color are the arrows connecting the boxes in the diagram?")
+    assert "red" in message_response.response.lower()
