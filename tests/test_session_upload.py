@@ -173,3 +173,32 @@ def test_chat_session_file_upload_image():
     # chatbot should be able to answer a question about the image that isn't in the image summary
     message_response = gpt_trainer.send_message(session.uuid, "What color are the arrows connecting the boxes in the diagram?")
     assert "red" in message_response.response.lower()
+
+@pytest.mark.incur_costs
+def test_chat_session_file_upload_pdf():
+    """Test chat session PDF upload"""
+    # set up chatbot
+    delete_testing_chatbots()
+    chatbot = gpt_trainer.create_chatbot(
+        f"{TEST_CHATBOT_PREFIX}-session_file_upload_pdf-{datetime.now().strftime("%Y%m%d%H%M%S")}"
+    )
+
+    # configure agent for file upload (need larger context)
+    agents = gpt_trainer.get_agents(chatbot.uuid)
+    gpt_trainer.update_agent(
+        agents[0].uuid,
+        AgentUpdateOptions(
+            name="Test Agent Name for File Upload",
+            description="You are a test agent for file upload",
+            prompt="You are a test agent for file upload",
+            model=ModelType.GPT_4O_MINI_32K,
+        ),
+    )
+
+    session = gpt_trainer.create_chat_session(chatbot.uuid)    
+    with open("tests/test_story.pdf", "rb") as f:
+        session_document = gpt_trainer.upload_session_document(file=f, filename="test_story.pdf")
+        session_document_uuid = session_document["uuid"]
+
+    message_response = gpt_trainer.send_message(session.uuid, "On Monday morning, what office supply was running low?", session_document_uuids=[session_document_uuid])
+    assert "printer paper" in message_response.response.lower()
