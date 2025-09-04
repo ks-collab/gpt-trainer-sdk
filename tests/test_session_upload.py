@@ -114,6 +114,16 @@ The blue Bostitch stapler found a new home in the supply cabinet, where it would
     message_response = gpt_trainer.send_message(session.uuid, "Who took the stapler?", session_document_uuids=[session_document_uuid])
     assert "The uploaded file(s) are too long, please reduce the length and try again." in message_response.response
 
+    # expect a too many documents to cause different error
+    # Times 8 is just enough to fit in context if alone, but combined with previous documents will exceed token limit
+    long_file_content = TEST_DOCUMENT_CONTENT * 8 
+    file_bytes = long_file_content.encode('utf-8')
+    file_obj = io.BytesIO(file_bytes)
+    session_document = gpt_trainer.upload_session_document(file=file_obj, filename="long_test_file.txt")
+    session_document_uuid = session_document["uuid"]
+    message_response = gpt_trainer.send_message(session.uuid, "Who took the stapler?", session_document_uuids=[session_document_uuid])
+    assert "The uploaded file(s) are too long, please reduce the length and try again, or start a new chat session." in message_response.response
+
     # a message afterwards should still work
     message_response = gpt_trainer.send_message(session.uuid, "Who took the stapler?")
     assert "Bob" in message_response.response 
