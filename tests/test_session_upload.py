@@ -202,3 +202,36 @@ def test_chat_session_file_upload_pdf():
 
     message_response = gpt_trainer.send_message(session.uuid, "On Monday morning, what office supply was running low?", session_document_uuids=[session_document_uuid])
     assert "printer paper" in message_response.response.lower()
+
+@pytest.mark.incur_costs
+def test_chat_session_file_upload_ignored():
+    """Test chat session PDF upload with image"""
+    # set up chatbot
+    delete_testing_chatbots()
+    chatbot = gpt_trainer.create_chatbot(
+        f"{TEST_CHATBOT_PREFIX}-session_file_upload_ignored-{datetime.now().strftime("%Y%m%d%H%M%S")}"
+    )
+    
+    # configure agent for to ignore session documents - GPT-4o-mini-4k is below the 16k requirement for file upload
+    agents = gpt_trainer.get_agents(chatbot.uuid)
+    gpt_trainer.update_agent(
+        agents[0].uuid,
+        AgentUpdateOptions(
+            name="Test Agent Name for File Upload",
+            description="You are a test agent for file upload",
+            prompt="You are a test agent for file upload",
+            model=ModelType.GPT_4O_MINI_4K,
+        ),
+    )
+
+    # upload session document
+    file_bytes = "The secret ingredient for Tommy's pizza is 100% real goat cheese".encode('utf-8')
+    file_obj = io.BytesIO(file_bytes)
+    session_document = gpt_trainer.upload_session_document(file=file_obj, filename="test_file.txt")
+    session_document_uuid = session_document["uuid"]
+
+    # include the session document in a chat message - expect it to be ignored
+    session = gpt_trainer.create_chat_session(chatbot.uuid)
+    message_response = gpt_trainer.send_message(session.uuid, "What is the secret ingredient?", session_document_uuids=[session_document_uuid])
+    assert "goat cheese" not in message_response.response.lower()
+    assert "error" not in message_response.response.lower()
