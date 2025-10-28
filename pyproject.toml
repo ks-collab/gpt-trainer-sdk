@@ -2,7 +2,9 @@
 name = "gpt-trainer-sdk"
 version = "0.2.0"
 description = "The official Python library for the GPT-trainer API"
-authors = ["Michael T. Chang <michael.chang@petal.org>"]
+authors = [
+  {name = "Michael T. Chang", email = "michael.chang@petal.org"},
+]
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
