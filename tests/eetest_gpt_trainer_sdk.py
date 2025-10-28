@@ -18,9 +18,11 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 load_dotenv()
+base_url = os.getenv("GPT_TRAINER_API_URL", "https://app.gpt-trainer.com")
+logger.info(f"Running tests against {base_url}")
 gpt_trainer = GPTTrainer(
     api_key=os.getenv("GPT_TRAINER_API_KEY", ""),
-    base_url=os.getenv("GPT_TRAINER_API_URL", "https://app.gpt-trainer.com"),
+    base_url=base_url,
     verify_ssl=False if "localhost" in os.getenv("GPT_TRAINER_API_URL", "") else True
 )
 

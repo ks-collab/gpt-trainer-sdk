@@ -6,13 +6,14 @@ import json
 import inspect
 
 import requests
-from .llms import ModelType, is_valid_model, get_model_cost
+from .llms import ModelType, is_valid_model, get_model_cost, get_available_models
 
 # Export the ModelType enum for easy access
 __all__ = [
     "GPTTrainer",
     "ModelType",
     "is_valid_model",
+    "get_available_models",
     "get_model_cost",
     "Chatbot",
     "ChatSession",

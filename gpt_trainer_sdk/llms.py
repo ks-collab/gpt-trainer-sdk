@@ -290,6 +290,13 @@ def is_valid_model(model: Union[str, ModelType]) -> bool:
     return model in MODEL_COSTS
 
 
+def get_available_models() -> list[str]:
+    """
+    Get all available models as a list of strings.
+    """
+    return MODEL_COSTS.keys()
+
+
 def get_model_cost(model: Union[str, ModelType]) -> int:
     """
     Get the cost for a specific model.
