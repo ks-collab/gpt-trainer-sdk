@@ -4,17 +4,13 @@ from typing import Literal, BinaryIO, Optional, Iterator
 from datetime import datetime
 import json
 import inspect
+from functools import cached_property
 
 import requests
-from .llms import ModelType, is_valid_model, get_model_cost, get_available_models
 
-# Export the ModelType enum for easy access
+
 __all__ = [
     "GPTTrainer",
-    "ModelType",
-    "is_valid_model",
-    "get_available_models",
-    "get_model_cost",
     "Chatbot",
     "ChatSession",
     "SendMessageResponse",
@@ -157,7 +153,7 @@ class AgentCreateOptions:
     ]
     description: str | None = None
     prompt: str | None = None
-    model: ModelType | None = None
+    model: str | None = None
     temperature: float | None = None
     bias: float | None = None
     stickness: float | None = None
@@ -171,7 +167,7 @@ class AgentUpdateOptions:
     name: str | None = None
     description: str | None = None
     prompt: str | None = None
-    model: ModelType | None = None
+    model: str | None = None
     enabled: bool | None = None
 
 
@@ -640,3 +636,37 @@ class GPTTrainer:
             raise GPTTrainerError(
                 f"Failed to upload session document - HTTP {response.status_code}: {response.text}"
             )
+
+    @cached_property
+    def agent_models(self) -> list[str]:
+        url = f"{self.api_url}/agent/models"
+        response = requests.get(url, headers=self.headers, verify=self.verify_ssl)
+        if response.status_code == 200:
+            logger.debug(f"Fetched agent models - {response.text}")
+            models: list[str] = response.json()["models"]
+            return models
+        else:
+            raise GPTTrainerError(
+                f"Failed to get agent models - HTTP {response.status_code}: {response.text}"
+            )
+
+    @cached_property
+    def agent_model_costs(self) -> dict[str, int]:
+        url = f"{self.api_url}/agent/model-costs"
+        response = requests.get(url, headers=self.headers, verify=self.verify_ssl)
+        if response.status_code == 200:
+            logger.debug(f"Fetched agent model costs - {response.text}")
+            model_costs: dict[str, int] = response.json()["model_costs"]
+            return model_costs
+        else:
+            raise GPTTrainerError(
+                f"Failed to get agent model costs - HTTP {response.status_code}: {response.text}"
+            )
+
+    def is_valid_model(self, model: str) -> bool:
+        return model in self.agent_models
+
+    def model_cost(self, model:str) -> int:
+        if model not in self.agent_model_costs:
+            raise ValueError(f"Invalid model: {model}")
+        return self.agent_model_costs[model]

@@ -17,8 +17,7 @@ from dotenv import load_dotenv
 
 from gpt_trainer_sdk import (
     GPTTrainer,
-    AgentUpdateOptions,
-    ModelType,
+    AgentUpdateOptions
 )
 
 logger = logging.getLogger(__name__)
@@ -60,7 +59,7 @@ def test_chat_session_file_upload():
             name="Test Agent Name for File Upload",
             description="You are a test agent for file upload",
             prompt="You are a test agent for file upload",
-            model=ModelType.GPT_4O_MINI_32K,
+            model="gpt-4o-mini-32k",
         ),
     )
 
@@ -153,7 +152,7 @@ def test_chat_session_file_upload_image():
             name="Test Agent Name for File Upload",
             description="You are a test agent for file upload",
             prompt="You are a test agent for file upload",
-            model=ModelType.GPT_4O_MINI_32K,
+            model="gpt-4o-mini-32k",
         ),
     )
 
@@ -191,7 +190,7 @@ def test_chat_session_file_upload_pdf():
             name="Test Agent Name for File Upload",
             description="You are a test agent for file upload",
             prompt="You are a test agent for file upload",
-            model=ModelType.GPT_4O_MINI_32K,
+            model="gpt-4o-mini-32k",
         ),
     )
 
@@ -220,7 +219,7 @@ def test_chat_session_file_upload_ignored():
             name="Test Agent Name for File Upload",
             description="You are a test agent for file upload",
             prompt="You are a test agent for file upload",
-            model=ModelType.GPT_4O_MINI_4K,
+            model="gpt-4o-mini-4k",
         ),
     )
 
