@@ -595,18 +595,6 @@ class GPTTrainer:
                 f"Failed to delete source tag {source_tag_uuid} - HTTP {response.status_code}: {response.text}"
             )
 
-    def is_model_string_valid(self, model: str) -> bool:
-        """
-        Check if a model string is valid.
-
-        Args:
-            model: Model name as string
-
-        Returns:
-            True if the model is valid, False otherwise
-        """
-        return is_valid_model(model)
-
     def upload_session_document(self, file: BinaryIO, filename: str) -> dict:
         """
         Upload a file as a chat session document using multipart form data.
