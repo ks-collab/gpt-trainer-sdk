@@ -8,7 +8,6 @@
 
 import pytest
 import logging
-from datetime import datetime
 import os
 import io
 
@@ -17,7 +16,8 @@ from dotenv import load_dotenv
 
 from gpt_trainer_sdk import (
     GPTTrainer,
-    AgentUpdateOptions
+    AgentUpdateOptions,
+    Chatbot
 )
 
 logger = logging.getLogger(__name__)
@@ -29,27 +29,10 @@ gpt_trainer = GPTTrainer(
     verify_ssl=False if "localhost" in os.getenv("GPT_TRAINER_API_URL", "") else True,
 )
 
-TEST_CHATBOT_PREFIX = "test-chatbot"
-
-def delete_testing_chatbots():
-    # delete previous testing chatbots
-    chatbots = gpt_trainer.get_chatbots()
-    chatbots_to_delete = [
-        chatbot for chatbot in chatbots if chatbot.name.startswith(TEST_CHATBOT_PREFIX)
-    ]
-    for chatbot in chatbots_to_delete:
-        resp = gpt_trainer.delete_chatbot(chatbot.uuid)
-        logger.info(f"Deleted chatbot {chatbot.name} with uuid {chatbot.uuid} - {resp}")
-
-
 @pytest.mark.incur_costs
-def test_chat_session_file_upload():
+def test_chat_session_file_upload(gpt_trainer: GPTTrainer, chatbot: Chatbot):
     """Test chat session file upload, multiple uploads, and document-too-long error"""
-    # set up chatbot
-    delete_testing_chatbots()
-    chatbot = gpt_trainer.create_chatbot(
-        f"{TEST_CHATBOT_PREFIX}-session_file_upload-{datetime.now().strftime("%Y%m%d%H%M%S")}"
-    )
+
 
     # configure agent for file upload (need larger context)
     agents = gpt_trainer.get_agents(chatbot.uuid)
@@ -136,14 +119,8 @@ The blue Bostitch stapler found a new home in the supply cabinet, where it would
     assert "goat cheese" in message_response.response
 
 @pytest.mark.incur_costs
-def test_chat_session_file_upload_image():
+def test_chat_session_file_upload_image(gpt_trainer: GPTTrainer, chatbot: Chatbot):
     """Test chat session image upload"""
-    # set up chatbot
-    delete_testing_chatbots()
-    chatbot = gpt_trainer.create_chatbot(
-        f"{TEST_CHATBOT_PREFIX}-session_file_upload_image-{datetime.now().strftime("%Y%m%d%H%M%S")}"
-    )
-
     # configure agent for file upload (need larger context)
     agents = gpt_trainer.get_agents(chatbot.uuid)
     gpt_trainer.update_agent(
@@ -174,13 +151,8 @@ def test_chat_session_file_upload_image():
     assert "red" in message_response.response.lower()
 
 @pytest.mark.incur_costs
-def test_chat_session_file_upload_pdf():
+def test_chat_session_file_upload_pdf(gpt_trainer: GPTTrainer, chatbot: Chatbot):
     """Test chat session PDF upload"""
-    # set up chatbot
-    delete_testing_chatbots()
-    chatbot = gpt_trainer.create_chatbot(
-        f"{TEST_CHATBOT_PREFIX}-session_file_upload_pdf-{datetime.now().strftime("%Y%m%d%H%M%S")}"
-    )
 
     # configure agent for file upload (need larger context)
     agents = gpt_trainer.get_agents(chatbot.uuid)
@@ -203,14 +175,8 @@ def test_chat_session_file_upload_pdf():
     assert "printer paper" in message_response.response.lower()
 
 @pytest.mark.incur_costs
-def test_chat_session_file_upload_ignored():
-    """Test chat session PDF upload with image"""
-    # set up chatbot
-    delete_testing_chatbots()
-    chatbot = gpt_trainer.create_chatbot(
-        f"{TEST_CHATBOT_PREFIX}-session_file_upload_ignored-{datetime.now().strftime("%Y%m%d%H%M%S")}"
-    )
-    
+def test_chat_session_file_upload_ignored(gpt_trainer: GPTTrainer, chatbot: Chatbot):
+    """Test chat session PDF upload with image"""    
     # configure agent for to ignore session documents - GPT-4o-mini-4k is below the 16k requirement for file upload
     agents = gpt_trainer.get_agents(chatbot.uuid)
     gpt_trainer.update_agent(

@@ -22,3 +22,13 @@ from gpt_trainer_sdk import GPTTrainer
 
 gpt_trainer = GPTTrainer(api_key="GPT_TRAINER_API_KEY")
 ```
+
+## Development
+
+There are some tests that incur costs via API calls. To run these tests, use the `-m incur_costs` flag.
+To run all tests, use the following commands:
+
+```bash
+uv run pytest 
+uv run pytest -m incur_costs
+```

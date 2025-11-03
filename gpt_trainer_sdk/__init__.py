@@ -1,5 +1,4 @@
 import logging
-from dataclasses import dataclass, field
 from typing import Literal, BinaryIO, Optional, Iterator
 from datetime import datetime
 import json
@@ -7,6 +6,7 @@ import inspect
 from functools import cached_property
 
 import requests
+from pydantic import BaseModel
 
 
 __all__ = [
@@ -29,8 +29,7 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class Chatbot:
+class Chatbot(BaseModel):
     uuid: str
     name: str
     meta: dict
@@ -38,25 +37,21 @@ class Chatbot:
     modified_at: str
 
 
-@dataclass
-class ChatSession:
+class ChatSession(BaseModel):
     uuid: str
     created_at: str
     modified_at: str
 
 
-@dataclass
-class SendMessageResponse:
+class SendMessageResponse(BaseModel):
     response: str
 
 
-@dataclass
-class DeleteAgentResponse:
+class DeleteAgentResponse(BaseModel):
     success: bool
 
 
-@dataclass
-class ChatMessageCitation:
+class ChatMessageCitation(BaseModel):
     data_source_uuid: str
     title: str
     text: str
@@ -67,15 +62,14 @@ class ChatMessageCitation:
 ChatMessageCitations = dict[str, ChatMessageCitation]
 
 
-@dataclass
-class ChatMessage:
+class ChatMessage(BaseModel):
     background_pending_tasks: int
     cite_data_json: str
     cite_data: ChatMessageCitations
     created_at: datetime
-    detected_frustrations: str
+    detected_frustrations: Optional[str] = None
     error_message: str
-    feedback_json: str
+    feedback_json: Optional[str] = None
     finish_reason: str
     labels: list
     meta_json: str
@@ -87,8 +81,7 @@ class ChatMessage:
     ai_context_json: Optional[str] = "{}"
 
 
-@dataclass
-class DataSource:
+class DataSource(BaseModel):
     uuid: str
     file_name: str
     title: str
@@ -106,31 +99,22 @@ class DataSource:
     ]
     type: Literal["upload", "link", "google-drive", "table", "image", "qa", "video"]
 
-    @classmethod
-    def from_dict(cls, args: dict):
-        return cls(
-            **{k: v for k, v in args.items() if k in inspect.signature(cls).parameters}
-        )
 
-
-@dataclass
 class DataSourceFull(DataSource):
     created_at: datetime
     modified_at: datetime
     file_size: int
-    meta_json: dict
+    meta_json: str
     tokens: int
 
 
-@dataclass
-class AgentMeta:
+class AgentMeta(BaseModel):
     model: str
     temperature: float
-    use_all_sources: bool
+    use_all_sources: Optional[bool] = None
 
 
-@dataclass
-class Agent:
+class Agent(BaseModel):
     created_at: datetime
     description: str
     enabled: int
@@ -138,15 +122,14 @@ class Agent:
     modified_at: datetime
     name: str
     prompt: str
-    type: Literal["user-facing"]
+    type: str
     uuid: str
-    variables: list = field(default_factory=list)
+    variables: list = []
     data_source_uuids: Optional[list[str]] = None
     tool_functions: Optional[list] = None
 
 
-@dataclass
-class AgentCreateOptions:
+class AgentCreateOptions(BaseModel):
     name: str
     type: Literal[
         "user-facing", "background", "human-escalation", "pre-canned", "spam-defense"
@@ -162,17 +145,18 @@ class AgentCreateOptions:
     use_all_sources: bool | None = None
 
 
-@dataclass
-class AgentUpdateOptions:
-    name: str | None = None
-    description: str | None = None
-    prompt: str | None = None
-    model: str | None = None
-    enabled: bool | None = None
+class AgentUpdateOptions(BaseModel):
+    name: Optional[str] = None
+    prompt: Optional[str] = None
+    description: Optional[str] = None
+    model: Optional[str] = None
+    enabled: Optional[bool] = None
+    data_source_uuids: Optional[list[str]] = None
+    temerature: Optional[float] = None
+    use_all_sources: Optional[bool] = None
 
 
-@dataclass
-class SourceTag:
+class SourceTag(BaseModel):
     uuid: str
     name: str
     color: str
@@ -181,22 +165,19 @@ class SourceTag:
     modified_at: str
 
 
-@dataclass
-class SourceTagCreateOptions:
+class SourceTagCreateOptions(BaseModel):
     name: str
     color: str
     data_source_uuids: list[str] | None = None
 
 
-@dataclass
-class SourceTagUpdateOptions:
+class SourceTagUpdateOptions(BaseModel):
     name: str | None = None
     color: str | None = None
     data_source_uuids: list[str] | None = None
 
 
-@dataclass
-class DeleteSourceTagResponse:
+class DeleteSourceTagResponse(BaseModel):
     success: bool
 
 
@@ -391,10 +372,10 @@ class GPTTrainer:
 
         if response.status_code == 200:
             logger.debug(f"File upload successful - {response.text}")
-            return DataSource.from_dict(response.json())
+            return DataSource(**response.json())
         elif response.status_code == 409:
             logger.debug(f"File already exists - {response.text}")
-            return DataSource.from_dict(response.json())
+            return DataSource(**response.json())
         else:
             raise GPTTrainerError(
                 f"Failed to upload file - HTTP {response.status_code}: {response.text}"
@@ -654,7 +635,7 @@ class GPTTrainer:
     def is_valid_model(self, model: str) -> bool:
         return model in self.agent_models
 
-    def model_cost(self, model:str) -> int:
+    def model_cost(self, model: str) -> int:
         if model not in self.agent_model_costs:
             raise ValueError(f"Invalid model: {model}")
         return self.agent_model_costs[model]
