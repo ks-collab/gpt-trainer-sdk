@@ -9,6 +9,7 @@ import logging
 from time import sleep
 import os
 import pytest
+import io
 
 from gpt_trainer_sdk import (
     GPTTrainer,
@@ -21,6 +22,7 @@ from gpt_trainer_sdk import (
 )
 
 logger = logging.getLogger(__name__)
+
 
 @pytest.mark.incur_costs
 def test_gpt_trainer_sdk(gpt_trainer: GPTTrainer, chatbot: Chatbot):
@@ -54,45 +56,36 @@ def test_gpt_trainer_sdk(gpt_trainer: GPTTrainer, chatbot: Chatbot):
 
     # upload a document with unsupported file type
     logger.info("uploading file with unsupported file type")
-    temp_file_unsupported = "expect_failure.foobar"
-    with open(temp_file_unsupported, "w") as f:
-        f.write(
-            "Yesterday, Alice and Bob talked about their favorite pizza restaurants."
+    try:
+        upload_response_unsupported = gpt_trainer.upload_data_source(
+            chatbot.uuid, io.StringIO("Yesterday, Alice and Bob talked about their favorite pizza restaurants."), "expect_failure.foobar"
         )
-    with open(temp_file_unsupported, "rb") as f:
-        try:
-            upload_response_unsupported = gpt_trainer.upload_data_source(
-                chatbot.uuid, f, temp_file_unsupported
-            )
-            assert False, "Expected an exception for unsupported file type"
-        except GPTTrainerError as e:
-            logger.info(f"Expected error: {e}")
-            assert "file type not allowed" in str(e)
-    os.remove(temp_file_unsupported)
+        assert False, "Expected an exception for unsupported file type"
+    except GPTTrainerError as e:
+        logger.info(f"Expected error: {e}")
+        assert "file type not allowed" in str(e)
 
     # upload documents
     logger.info("uploading file")
-    temp_file_name = "test.txt"
-    with open(temp_file_name, "w") as f:
-        f.write(
+    upload_response = gpt_trainer.upload_data_source(
+        chatbot.uuid,
+        io.StringIO(
             "Yesterday, Alice and Bob talked about their favorite pizza restaurants."
-        )
-    with open(temp_file_name, "rb") as f:
-        upload_response = gpt_trainer.upload_data_source(
-            chatbot.uuid, f, temp_file_name
-        )
+        ),
+        "test.txt",
+    )
     logger.info(upload_response)
-    os.remove(temp_file_name)
 
     # check document status
     logger.info("checking document status")
     data_sources = gpt_trainer.get_data_sources(chatbot.uuid)
-    while data_sources[0].status != "success":
+    while all(data_source.status != "success" for data_source in data_sources):
         logger.info("document is not ready yet, trying again")
         sleep(5)
         data_sources = gpt_trainer.get_data_sources(chatbot.uuid)
 
     logger.info(data_sources)
+    assert data_sources[0].tokens > 0, "Expected tokens to be greater than 0"
 
     # test source tags
     logger.info("testing source tags")
