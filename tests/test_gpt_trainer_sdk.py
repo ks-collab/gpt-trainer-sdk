@@ -19,9 +19,30 @@ from gpt_trainer_sdk import (
     SourceTagCreateOptions,
     SourceTagUpdateOptions,
     Chatbot,
+    DataSourceFull,
 )
 
 logger = logging.getLogger(__name__)
+
+
+def wait_until_data_sources_ready(
+    gpt_trainer: GPTTrainer, chatbot: Chatbot
+) -> list[DataSourceFull]:
+    """Wait until all data sources are ready"""
+    data_sources = gpt_trainer.get_data_sources(chatbot.uuid)
+
+    PROCESSING_STATUSES = ["await", "queued", "extracting", "chunking", "embedding"]
+    while any(
+        data_source.status in PROCESSING_STATUSES for data_source in data_sources
+    ):
+        logger.info("data sources are still processing, waiting...")
+        sleep(5)
+        data_sources = gpt_trainer.get_data_sources(chatbot.uuid)
+
+    if any(data_source.status != "success" for data_source in data_sources):
+        raise Exception(f"Some data sources failed to process: {data_sources}")
+
+    return data_sources
 
 
 @pytest.mark.incur_costs
@@ -58,7 +79,11 @@ def test_gpt_trainer_sdk(gpt_trainer: GPTTrainer, chatbot: Chatbot):
     logger.info("uploading file with unsupported file type")
     try:
         upload_response_unsupported = gpt_trainer.upload_data_source(
-            chatbot.uuid, io.StringIO("Yesterday, Alice and Bob talked about their favorite pizza restaurants."), "expect_failure.foobar"
+            chatbot.uuid,
+            io.StringIO(
+                "Yesterday, Alice and Bob talked about their favorite pizza restaurants."
+            ),
+            "expect_failure.foobar",
         )
         assert False, "Expected an exception for unsupported file type"
     except GPTTrainerError as e:
@@ -75,15 +100,7 @@ def test_gpt_trainer_sdk(gpt_trainer: GPTTrainer, chatbot: Chatbot):
         "test.txt",
     )
     logger.info(upload_response)
-
-    # check document status
-    logger.info("checking document status")
-    data_sources = gpt_trainer.get_data_sources(chatbot.uuid)
-    while all(data_source.status != "success" for data_source in data_sources):
-        logger.info("document is not ready yet, trying again")
-        sleep(5)
-        data_sources = gpt_trainer.get_data_sources(chatbot.uuid)
-
+    data_sources = wait_until_data_sources_ready(gpt_trainer, chatbot)
     logger.info(data_sources)
     assert data_sources[0].tokens > 0, "Expected tokens to be greater than 0"
 
@@ -141,3 +158,53 @@ def test_gpt_trainer_sdk(gpt_trainer: GPTTrainer, chatbot: Chatbot):
 
     # delete data source
     gpt_trainer.delete_data_source(data_sources[0].uuid)
+
+
+@pytest.mark.incur_costs
+def test_upload_doc_filetype(gpt_trainer: GPTTrainer, chatbot: Chatbot):
+    """Test .doc support"""
+    # upload a .doc file
+    with open("tests/testdata/test_story_2.doc", "rb") as f:
+        gpt_trainer.upload_data_source(chatbot.uuid, f, "test_story.doc")
+    wait_until_data_sources_ready(gpt_trainer, chatbot)
+
+    # send message
+    session = gpt_trainer.create_chat_session(chatbot.uuid)
+    message = gpt_trainer.send_message(
+        session.uuid, "What is the name of the CEO in the story?"
+    )
+    logger.info(message)
+    assert "Lena" in message.response
+
+
+@pytest.mark.incur_costs
+def test_upload_docx_filetype(gpt_trainer: GPTTrainer, chatbot: Chatbot):
+    """Test .docx support"""
+    with open("tests/testdata/test_story_2.docx", "rb") as f:
+        gpt_trainer.upload_data_source(chatbot.uuid, f, "test_story.docx")
+    wait_until_data_sources_ready(gpt_trainer, chatbot)
+
+    # send message
+    session = gpt_trainer.create_chat_session(chatbot.uuid)
+    message = gpt_trainer.send_message(
+        session.uuid, "What is the name of the CEO in the story?"
+    )
+    logger.info(message)
+    assert "Lena" in message.response
+
+
+@pytest.mark.incur_costs
+def test_upload_pdf_filetype(gpt_trainer: GPTTrainer, chatbot: Chatbot):
+    """Test .doc support"""
+    # upload a .pdf file
+    with open("tests/testdata/test_story_2.pdf", "rb") as f:
+        gpt_trainer.upload_data_source(chatbot.uuid, f, "test_story.pdf")
+    wait_until_data_sources_ready(gpt_trainer, chatbot)
+
+    # send message
+    session = gpt_trainer.create_chat_session(chatbot.uuid)
+    message = gpt_trainer.send_message(
+        session.uuid, "What is the name of the CEO in the story?"
+    )
+    logger.info(message)
+    assert "Lena" in message.response
