@@ -1,5 +1,5 @@
 import logging
-from typing import Literal, BinaryIO, Optional, Iterator
+from typing import Literal, BinaryIO, Optional, Iterator, Any
 from datetime import datetime
 import json
 import inspect
@@ -178,6 +178,50 @@ class SourceTagUpdateOptions(BaseModel):
 
 
 class DeleteSourceTagResponse(BaseModel):
+    success: bool
+
+
+class ToolFunctionMeta(BaseModel):
+    allow_gpt_trainer_properties: Optional[int] = None
+
+
+class ToolFunction(BaseModel):
+    uuid: str
+    name: str
+    description: str
+    parameters: dict[str, Any]
+    headers: dict[str, Any]
+    enabled: int
+    external_url: Optional[str]
+    method: Optional[str]
+    created_at: str
+    modified_at: str
+    meta: ToolFunctionMeta
+
+
+class CreateToolFunctionOptions(BaseModel):
+    name: str
+    description: str
+    parameters: dict[str, Any] = {}
+    headers: dict[str, Any] = {}
+    enabled: int = 1
+    external_url: str
+    method: Literal["GET", "POST", "PUT", "DELETE", "PATCH"] = "GET"
+    allow_gpt_trainer_properties: int = 0
+
+
+class UpdateToolFunctionOptions(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    parameters: Optional[dict[str, Any]] = None
+    headers: Optional[dict[str, Any]] = None
+    enabled: Optional[int] = None
+    external_url: Optional[str] = None
+    method: Optional[Literal["GET", "POST", "PUT", "DELETE", "PATCH"]] = None
+    allow_gpt_trainer_properties: Optional[int] = None
+
+
+class DeleteToolFunctionResponse(BaseModel):
     success: bool
 
 
@@ -604,6 +648,69 @@ class GPTTrainer:
         else:
             raise GPTTrainerError(
                 f"Failed to upload session document - HTTP {response.status_code}: {response.text}"
+            )
+
+    def create_tool_function(
+        self, agent_uuid: str, options: CreateToolFunctionOptions
+    ) -> ToolFunction:
+        """Create a tool function for an agent.
+
+        Args:
+            agent_uuid: The UUID of the agent to create the tool function for
+            options: The options for the tool function
+
+        Returns:
+            The tool function object
+        """
+        options_dict = {k: v for k, v in options.__dict__.items() if v is not None}
+        response = requests.post(
+            url=f"{self.api_url}/agent/{agent_uuid}/function/create",
+            headers=self.headers,
+            json=options_dict,
+            verify=self.verify_ssl,
+        )
+        if response.status_code == 200:
+            logger.debug(
+                f"Tool function created for agent {agent_uuid} - {response.text}"
+            )
+            return ToolFunction(**response.json())
+        else:
+            raise GPTTrainerError(
+                f"Failed to create tool function for agent {agent_uuid} - HTTP {response.status_code}: {response.text}"
+            )
+
+    def update_tool_function(
+        self, tool_function_uuid: str, options: UpdateToolFunctionOptions
+    ) -> ToolFunction:
+        url = f"{self.api_url}/function/{tool_function_uuid}/update"
+        options_dict = {k: v for k, v in options.__dict__.items() if v is not None}
+        response = requests.post(
+            url, headers=self.headers, json=options_dict, verify=self.verify_ssl
+        )
+        if response.status_code == 200:
+            logger.debug(
+                f"Tool function updated {tool_function_uuid} - {response.text}"
+            )
+            return ToolFunction(**response.json())
+        else:
+            raise GPTTrainerError(
+                f"Failed to update tool function {tool_function_uuid} - HTTP {response.status_code}: {response.text}"
+            )
+
+    def delete_tool_function(
+        self, tool_function_uuid: str
+    ) -> DeleteToolFunctionResponse:
+        url = f"{self.api_url}/function/{tool_function_uuid}/delete"
+        response = requests.post(url, headers=self.headers, verify=self.verify_ssl)
+        print(response.text)
+        if response.status_code == 200:
+            logger.debug(
+                f"Tool function deleted {tool_function_uuid} - {response.text}"
+            )
+            return DeleteToolFunctionResponse(**response.json())
+        else:
+            raise GPTTrainerError(
+                f"Failed to delete tool function {tool_function_uuid} - HTTP {response.status_code}: {response.text}"
             )
 
     @cached_property
