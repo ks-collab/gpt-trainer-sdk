@@ -4,6 +4,9 @@
 2. run this test script with:
 
 `uv run pytest tests/test_session_upload.py -rA --log-level=DEBUG -m incur_costs`
+
+For a specific test, run with:
+`uv run pytest tests/test_session_upload.py -rA --log-level=DEBUG -m incur_costs -k test_chat_session_file_upload_any_llm`
 """
 
 import pytest
@@ -212,3 +215,137 @@ def test_chat_session_file_upload_ignored(gpt_trainer: GPTTrainer, chatbot: Chat
     message_response = gpt_trainer.send_message(session.uuid, "What is the secret ingredient?", session_document_uuids=[session_document_uuid])
     assert "goat cheese" not in message_response.response.lower()
     assert "error" not in message_response.response.lower()
+
+
+@pytest.mark.incur_costs
+def test_chat_session_file_upload_any_llm(gpt_trainer: GPTTrainer, chatbot: Chatbot):
+    """Session file upload should work with any LLM, not just 4o"""
+    
+    MODELS_TO_TEST = [
+        "gpt-5-nano-16k",
+        "gemini-2.5-flash-lite-16k",
+        "claude-4.5-haiku-16k",
+    ]
+
+    # configure chatbot to allow file upload
+    gpt_trainer.update_chatbot(chatbot_uuid=chatbot.uuid, options={"file_upload": {"enabled": True}})
+
+    # create in-memory file-like object
+    # this is 565 tokens long
+    TEST_DOCUMENT_CONTENT = """The Stapler Incident
+
+It was a typical Tuesday morning at Acme Corporation when Sarah from accounting discovered that her trusty stapler had mysteriously vanished from her desk. This wasn't just any stapler - it was the red Swingline model that had faithfully served her for three years, through countless reports, expense forms, and the occasional paper jam.
+
+Sarah's desk neighbor, Mike from IT, noticed her frantic searching and offered his condolences. "I saw Bob from marketing walking around with a stapler yesterday," he mentioned casually while sipping his coffee. "But you know how it is around here - office supplies have a way of migrating between departments like lost socks in a dryer."
+
+The office supply cabinet, usually stocked with pens, paper clips, and sticky notes, was surprisingly low on staplers. Sarah found only a lonely blue Bostitch model that looked like it had been through a war. "This will have to do," she muttered, testing it on a scrap piece of paper. The staple went in crooked, but it held.
+
+Meanwhile, in the marketing department, Bob was blissfully unaware of the drama unfolding in accounting. He was using Sarah's red Swingline to staple together a presentation about Q4 projections. "This is a nice stapler," he thought to himself, admiring its smooth action and comfortable grip. "I should get one like this for my desk."
+
+The saga continued throughout the week. Sarah's blue stapler developed a squeak that could be heard across the office. Mike suggested oiling it, but Sarah was skeptical. "It's not the same," she lamented. "My red one never made that noise."
+
+By Friday, the missing stapler had become something of an office legend. People would ask Sarah about it in the break room, and she'd recount the tale with increasing dramatic flair. "It was the perfect stapler," she'd say, "never jammed, always aligned perfectly, and the red color matched my coffee mug."
+
+Finally, on Monday morning, Sarah arrived at her desk to find her beloved red Swingline sitting exactly where she'd left it, with a sticky note attached: "Sorry for borrowing this! - Bob from Marketing." The note was written on a yellow Post-it that was slightly askew, as if applied in a hurry.
+
+Sarah smiled and tested the stapler. It worked perfectly, just as she remembered. She made a mental note to label her office supplies more clearly in the future, but secretly, she was glad the incident had given her something interesting to talk about during coffee breaks.
+
+The blue Bostitch stapler found a new home in the supply cabinet, where it would wait for the next person who needed a temporary stapling solution. And so the cycle of office supply migration continued, as it always had and always would.
+
+"""
+    file_bytes = TEST_DOCUMENT_CONTENT.encode('utf-8')
+
+    agents = gpt_trainer.get_agents(chatbot.uuid)
+
+    for model in MODELS_TO_TEST:
+        # configure agent for file upload
+        gpt_trainer.update_agent(
+            agents[0].uuid,
+            AgentUpdateOptions(
+                name="Test Agent Name for File Upload",
+                description="You are a test agent for file upload",
+                prompt="You are a test agent for file upload",
+                model=model,
+            ),
+        )
+
+        # send chat message with file upload
+        session = gpt_trainer.create_chat_session(chatbot.uuid)
+        session_document = gpt_trainer.upload_session_document(file=io.BytesIO(file_bytes), filename="test_file.txt")
+        session_document_uuid = session_document["uuid"]
+        message_response = gpt_trainer.send_message(session.uuid, "Whose stapler vanished?", session_document_uuids=[session_document_uuid])
+        if "Sarah" not in message_response.response:
+            # get messages from the chat session, and print out any errors
+            messages = gpt_trainer.get_messages(session.uuid)
+            for message in messages:
+                if message.error_message:
+                    logger.error(f"Error in message {message.uuid}: {message.error_message}")
+            raise ValueError(f"Model {model} failed to answer 'Whose stapler vanished?'")
+        message_response = gpt_trainer.send_message(session.uuid, "What color was the bad stapler?")
+        if "blue" not in message_response.response.lower():
+            # get messages from the chat session, and print out any errors
+            messages = gpt_trainer.get_messages(session.uuid)
+            for message in messages:
+                if message.error_message:
+                    logger.error(f"Error in message {message.uuid}: {message.error_message}")
+            raise ValueError(f"Model {model} failed to answer 'What color was the bad stapler?'")
+
+
+@pytest.mark.incur_costs
+def test_chat_session_file_upload_ignore_small_context(gpt_trainer: GPTTrainer, chatbot: Chatbot):
+    """Session file upload should be ignored with small context size models"""
+    
+    MODELS_TO_TEST = [
+        "claude-4.5-haiku-4k",
+    ]
+
+    # configure chatbot to allow file upload
+    gpt_trainer.update_chatbot(chatbot_uuid=chatbot.uuid, options={"file_upload": {"enabled": True}})
+
+    # create in-memory file-like object
+    # this is 565 tokens long
+    TEST_DOCUMENT_CONTENT = """The Stapler Incident
+
+It was a typical Tuesday morning at Acme Corporation when Sarah from accounting discovered that her trusty stapler had mysteriously vanished from her desk. This wasn't just any stapler - it was the red Swingline model that had faithfully served her for three years, through countless reports, expense forms, and the occasional paper jam.
+
+Sarah's desk neighbor, Mike from IT, noticed her frantic searching and offered his condolences. "I saw Bob from marketing walking around with a stapler yesterday," he mentioned casually while sipping his coffee. "But you know how it is around here - office supplies have a way of migrating between departments like lost socks in a dryer."
+
+The office supply cabinet, usually stocked with pens, paper clips, and sticky notes, was surprisingly low on staplers. Sarah found only a lonely blue Bostitch model that looked like it had been through a war. "This will have to do," she muttered, testing it on a scrap piece of paper. The staple went in crooked, but it held.
+
+Meanwhile, in the marketing department, Bob was blissfully unaware of the drama unfolding in accounting. He was using Sarah's red Swingline to staple together a presentation about Q4 projections. "This is a nice stapler," he thought to himself, admiring its smooth action and comfortable grip. "I should get one like this for my desk."
+
+The saga continued throughout the week. Sarah's blue stapler developed a squeak that could be heard across the office. Mike suggested oiling it, but Sarah was skeptical. "It's not the same," she lamented. "My red one never made that noise."
+
+By Friday, the missing stapler had become something of an office legend. People would ask Sarah about it in the break room, and she'd recount the tale with increasing dramatic flair. "It was the perfect stapler," she'd say, "never jammed, always aligned perfectly, and the red color matched my coffee mug."
+
+Finally, on Monday morning, Sarah arrived at her desk to find her beloved red Swingline sitting exactly where she'd left it, with a sticky note attached: "Sorry for borrowing this! - Bob from Marketing." The note was written on a yellow Post-it that was slightly askew, as if applied in a hurry.
+
+Sarah smiled and tested the stapler. It worked perfectly, just as she remembered. She made a mental note to label her office supplies more clearly in the future, but secretly, she was glad the incident had given her something interesting to talk about during coffee breaks.
+
+The blue Bostitch stapler found a new home in the supply cabinet, where it would wait for the next person who needed a temporary stapling solution. And so the cycle of office supply migration continued, as it always had and always would.
+
+"""
+    file_bytes = TEST_DOCUMENT_CONTENT.encode('utf-8')
+
+    agents = gpt_trainer.get_agents(chatbot.uuid)
+
+    for model in MODELS_TO_TEST:
+        # configure agent for file upload
+        gpt_trainer.update_agent(
+            agents[0].uuid,
+            AgentUpdateOptions(
+                name="Test Agent Name for File Upload",
+                description="You are a test agent for file upload",
+                prompt="You are a test agent for file upload",
+                model=model,
+            ),
+        )
+
+        # send chat message with file upload
+        session = gpt_trainer.create_chat_session(chatbot.uuid)
+        session_document = gpt_trainer.upload_session_document(file=io.BytesIO(file_bytes), filename="test_file.txt")
+        session_document_uuid = session_document["uuid"]
+        message_response = gpt_trainer.send_message(session.uuid, "Whose stapler vanished?", session_document_uuids=[session_document_uuid])
+        assert "Sarah" not in message_response.response, f"Model {model} should not have answered 'Whose stapler vanished?'"
+        message_response = gpt_trainer.send_message(session.uuid, "What color was the bad stapler?")
+        assert "blue" not in message_response.response.lower(), f"Model {model} should not have answered 'What color was the bad stapler?'"
