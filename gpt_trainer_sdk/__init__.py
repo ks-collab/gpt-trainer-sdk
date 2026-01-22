@@ -283,6 +283,17 @@ class GPTTrainer:
                 f"Failed to create chatbot - HTTP {response.status_code}: {response.text}"
             )
 
+    def update_chatbot(self, chatbot_uuid: str, options: dict[str, Any]) -> Chatbot:
+        url = f"{self.api_url}/chatbot/{chatbot_uuid}/update"
+        response = requests.post(url, headers=self.headers, json=options, verify=self.verify_ssl)
+        if response.status_code == 200:
+            logger.debug(f"Chatbot updated - {response.text}")
+            return Chatbot(**response.json())
+        else:
+            raise GPTTrainerError(
+                f"Failed to update chatbot - HTTP {response.status_code}: {response.text}"
+            )
+
     def delete_chatbot(self, chatbot_uuid: str):
         url = f"{self.api_url}/chatbot/{chatbot_uuid}/delete"
         response = requests.delete(url, headers=self.headers, verify=self.verify_ssl)

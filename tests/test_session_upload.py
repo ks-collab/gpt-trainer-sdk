@@ -46,6 +46,9 @@ def test_chat_session_file_upload(gpt_trainer: GPTTrainer, chatbot: Chatbot):
         ),
     )
 
+    # configure chatbot to allow file upload
+    gpt_trainer.update_chatbot(chatbot_uuid=chatbot.uuid, options={"file_upload": {"enabled": True}})
+
     # send chat message with file upload
     session = gpt_trainer.create_chat_session(chatbot.uuid)
     message = gpt_trainer.send_message(session.uuid, "hello there, what can you do?")
@@ -133,6 +136,9 @@ def test_chat_session_file_upload_image(gpt_trainer: GPTTrainer, chatbot: Chatbo
         ),
     )
 
+    # configure chatbot to allow file upload
+    gpt_trainer.update_chatbot(chatbot_uuid=chatbot.uuid, options={"file_upload": {"enabled": True}})
+
     # send chat message with image upload
     session = gpt_trainer.create_chat_session(chatbot.uuid)
     
@@ -166,6 +172,9 @@ def test_chat_session_file_upload_pdf(gpt_trainer: GPTTrainer, chatbot: Chatbot)
         ),
     )
 
+    # configure chatbot to allow file upload
+    gpt_trainer.update_chatbot(chatbot_uuid=chatbot.uuid, options={"file_upload": {"enabled": True}})
+
     session = gpt_trainer.create_chat_session(chatbot.uuid)    
     with open("tests/test_story.pdf", "rb") as f:
         session_document = gpt_trainer.upload_session_document(file=f, filename="test_story.pdf")
@@ -188,6 +197,9 @@ def test_chat_session_file_upload_ignored(gpt_trainer: GPTTrainer, chatbot: Chat
             model="gpt-4o-mini-4k",
         ),
     )
+
+    # configure chatbot to allow file upload
+    gpt_trainer.update_chatbot(chatbot_uuid=chatbot.uuid, options={"file_upload": {"enabled": True}})
 
     # upload session document
     file_bytes = "The secret ingredient for Tommy's pizza is 100% real goat cheese".encode('utf-8')
