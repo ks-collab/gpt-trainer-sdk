@@ -1,8 +1,14 @@
-"""Integration test for LLMs (no costs incurred)
+"""Integration test for LLMs 
 
 Run this test script with:
 
+(no costs incurred)
 `uv run pytest tests/test_llms.py -rA --log-level=DEBUG`
+
+or 
+
+(incurs costs)
+`uv run pytest tests/test_llms.py -rA --log-level=DEBUG -m incur_costs`
 """
 
 import pytest
