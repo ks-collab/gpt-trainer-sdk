@@ -87,18 +87,14 @@ class DataSource(BaseModel):
     uuid: str
     file_name: str
     title: str
-    status: Literal[
-        "await",
-        "queued",
-        "pending",
-        "success",
-        "extracting",
-        "chunking",
-        "embedding",
-        "error:storage",
-        "error:token",
-        "fail",
-    ]
+    # Status is `str` rather than a Literal because the backend emits open-ended
+    # error:* variants (e.g. "error:rate limit", "error:no text",
+    # "error:image upload limit", "error:invalid datasource type: ..."). Known
+    # values: await, queued, pending, downloading, extracting, chunking,
+    # embedding, success, fail, error:storage, error:token, plus other error:*
+    # strings under 64 chars. Match terminal states with:
+    #   status in {"success", "fail"} or status.startswith("error:")
+    status: str
     type: Literal["upload", "link", "google-drive", "table", "image", "qa", "video"]
 
 
