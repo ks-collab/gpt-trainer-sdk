@@ -150,6 +150,17 @@ class AgentUpdateOptions(BaseModel):
     model: Optional[str] = None
     enabled: Optional[bool] = None
     data_source_uuids: Optional[list[str]] = None
+    # `temerature` is misspelled deliberately, mirroring the backend's
+    # UpdateAgentBody, which sets `extra = Extra.forbid` — sending the correctly
+    # spelled `temperature` is rejected with extra_forbidden and fails the whole
+    # update, taking any other fields in the same call with it.
+    #
+    # Note this field currently has no effect either way: the backend rebuilds
+    # meta_json by filtering the raw body through AgentMeta, which spells it
+    # `temperature`, so `temerature` is dropped and the request returns HTTP 200
+    # unchanged. Agent temperature cannot be updated via the v1 API by any
+    # spelling. Rename this to `temperature` only once the backend's
+    # UpdateAgentBody accepts that spelling.
     temerature: Optional[float] = None
     use_all_sources: Optional[bool] = None
 
