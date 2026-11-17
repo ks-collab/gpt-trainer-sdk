@@ -9,6 +9,13 @@ or
 
 (incurs costs)
 `uv run pytest tests/test_llms.py -rA --log-level=DEBUG -m incur_costs`
+
+Options for the incur_costs test (environment variables):
+- LLM_TEST_EXCLUDE_PREFIXES: comma-separated model-name prefixes to skip. Defaults to
+  "groq-": Groq models are listed by /chatbot/model-metadata but hidden in the app UI
+  when no platform Groq key is installed, so they always fail. Set to "" to test them.
+- LLM_TEST_MODELS: comma-separated substrings; only test models containing one of them,
+  e.g. LLM_TEST_MODELS=gpt-5.6,claude-5 to check newly added models cheaply.
 """
 
 import pytest
@@ -30,6 +37,19 @@ gpt_trainer = GPTTrainer(
     api_key=os.getenv("GPT_TRAINER_API_KEY", ""),
     base_url=base_url,
     verify_ssl=False if "localhost" in os.getenv("GPT_TRAINER_API_URL", "") else True,
+)
+
+TEST_QUERY = "Hello!"
+EXCLUDED_MODEL_PREFIXES = tuple(
+    p.strip() for p in os.getenv("LLM_TEST_EXCLUDE_PREFIXES", "groq-").split(",") if p.strip()
+)
+ONLY_MODELS = tuple(
+    s.strip() for s in os.getenv("LLM_TEST_MODELS", "").split(",") if s.strip()
+)
+# Reply text the backend sends in place of an answer when the LLM call fails
+ERROR_REPLY_MARKERS = (
+    "An error occurred while processing your message",
+    "currently overloaded",
 )
 
 
@@ -73,10 +93,17 @@ def test_llms_are_valid(gpt_trainer: GPTTrainer, chatbot: Chatbot):
         if model_data["name"] not in visited_models and model_data["context_size"] >= 2000:
             smallest_models.append(model_name)
             visited_models.append(model_data["name"])
+    skipped = [m for m in smallest_models if m.startswith(EXCLUDED_MODEL_PREFIXES)]
+    smallest_models = [m for m in smallest_models if m not in skipped]
+    if ONLY_MODELS:
+        smallest_models = [m for m in smallest_models if any(s in m for s in ONLY_MODELS)]
+    if skipped:
+        logger.info(f"Skipping models (LLM_TEST_EXCLUDE_PREFIXES): {skipped}")
     logger.info(f"Models to test: {smallest_models}")
+    assert smallest_models, "No models selected to test"
 
     # test each model
-    failed_models: list[str] = []
+    failed_models: dict[str, str] = {}
     for model_name in smallest_models:
         # set agent model to the smallest model
         logger.info(f"Setting agent model to {model_name}")
@@ -93,14 +120,39 @@ def test_llms_are_valid(gpt_trainer: GPTTrainer, chatbot: Chatbot):
         logger.info(f"Sending message to {model_name}")
         session = gpt_trainer.create_chat_session(chatbot.uuid)
         try:
-            message = gpt_trainer.send_message(session.uuid, "Hello!")
-            if "currently overloaded" in message.response:
-                failed_models.append(model_name)
-                logger.error(f"Model {model_name} failed")
-                continue
+            message = gpt_trainer.send_message(session.uuid, TEST_QUERY)
+            reason = _failure_reason(gpt_trainer, session.uuid, message.response)
         except GPTTrainerError as e:
-            failed_models.append(model_name)
-            logger.error(f"Failed to send message to {model_name}: {e}")
+            reason = f"request failed: {e}"
+        if reason:
+            failed_models[model_name] = reason
+            logger.error(f"Model {model_name} failed: {reason}")
+        else:
+            logger.info(f"Model {model_name} OK: {message.response.strip()[:80]!r}")
 
     logger.info(f"Failed models: {failed_models}")
-    assert len(failed_models) == 0, f"Some models failed: {failed_models}"
+    assert not failed_models, "Some models failed:\n" + "\n".join(
+        f"  {model}: {reason}" for model, reason in failed_models.items()
+    )
+
+
+def _failure_reason(gpt_trainer: GPTTrainer, session_uuid: str, reply: str) -> str | None:
+    """Return why a reply counts as a failure, or None if the model answered.
+
+    The non-stream endpoint returns HTTP 200 even when the LLM call fails: the reply is
+    the chatbot's error message ("An error occurred while processing your message...")
+    and the stored message has finish_reason "error" plus a traceback in error_message.
+    """
+    if not reply.strip():
+        return "empty reply"
+    for message in gpt_trainer.get_messages(session_uuid):
+        if message.query == TEST_QUERY and (
+            message.finish_reason == "error" or message.error_message.strip()
+        ):
+            last_line = (message.error_message.strip().splitlines() or [""])[-1]
+            return f"finish_reason={message.finish_reason}: {last_line[:200]}"
+    # Fallback in case the stored message isn't available
+    for marker in ERROR_REPLY_MARKERS:
+        if marker.lower() in reply.lower():
+            return f"error reply: {reply.strip()[:120]!r}"
+    return None
