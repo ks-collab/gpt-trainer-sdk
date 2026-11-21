@@ -2,7 +2,6 @@ import logging
 from typing import Literal, BinaryIO, Optional, Iterator, Any
 from datetime import datetime
 import json
-from functools import cached_property
 from urllib.parse import urlparse
 
 import requests
@@ -798,8 +797,9 @@ class GPTTrainer:
                 f"Failed to delete tool function {tool_function_uuid} - HTTP {response.status_code}: {response.text}"
             )
 
-    @cached_property
+    @property
     def agent_models(self) -> list[str]:
+        """Models GPT-trainer currently offers."""
         url = f"{self.api_url}/agent/models"
         response = self._request("GET", url)
         if response.status_code == 200:
@@ -811,8 +811,9 @@ class GPTTrainer:
                 f"Failed to get agent models - HTTP {response.status_code}: {response.text}"
             )
 
-    @cached_property
+    @property
     def agent_model_costs(self) -> dict[str, int]:
+        """Current per-model costs. Fetched on every access, not cached."""
         url = f"{self.api_url}/agent/model-costs"
         response = self._request("GET", url)
         if response.status_code == 200:
@@ -828,6 +829,7 @@ class GPTTrainer:
         return model in self.agent_models
 
     def model_cost(self, model: str) -> int:
-        if model not in self.agent_model_costs:
+        model_costs = self.agent_model_costs
+        if model not in model_costs:
             raise ValueError(f"Invalid model: {model}")
-        return self.agent_model_costs[model]
+        return model_costs[model]
