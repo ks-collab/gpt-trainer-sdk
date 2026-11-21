@@ -799,8 +799,7 @@ class GPTTrainer:
 
     @property
     def agent_models(self) -> list[str]:
-        """Models GPT-trainer currently offers. Fetched on every access, not cached,
-        so long-lived clients see models added after they started."""
+        """Models GPT-trainer currently offers."""
         url = f"{self.api_url}/agent/models"
         response = self._request("GET", url)
         if response.status_code == 200:
